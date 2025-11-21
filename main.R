@@ -20,11 +20,11 @@ FOOD_DATA <- bind_rows(
 
 # Preprocess
 df <- FOOD_DATA %>%
-  select(-food, -group) %>%   # not predictors for now
+  dplyr::select(-food, -group) %>%   # not predictors for now
   drop_na()
 
 y <- df$`Caloric Value`
-X <- df %>% select(-`Caloric Value`)
+X <- df %>% dplyr::select(-`Caloric Value`)
 
 X_scaled <- scale(X)
 
