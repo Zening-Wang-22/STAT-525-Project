@@ -60,10 +60,8 @@ idx_sel
 selected_nutrients <- colnames(X_scaled)[idx_sel]
 selected_nutrients
 
-# fat multicollinearity
+# Fat multicollinearity
 X_scaled[, "Fat"]
-print(X_scaled)
-
 plot(X_scaled[, "Saturated Fats"] + X_scaled[, "Monounsaturated Fats"] + X_scaled[, "Polyunsaturated Fats"],
      X_scaled[, "Fat"])
 
