@@ -3,6 +3,7 @@ library(readr)
 library(tidyverse)
 library(monomvn)
 library(BoomSpikeSlab)
+library(car)
 
 
 FOOD_DATA_GROUP1 <- read_csv("FINAL FOOD DATASET/FOOD-DATA-GROUP1.csv")
@@ -68,9 +69,25 @@ selected_nutrients <- colnames(X_scaled)[idx_sel]
 selected_nutrients
 
 # Fat multicollinearity
-# X_scaled[, "Fat"]
-# plot(X_scaled[, "Saturated Fats"] + X_scaled[, "Monounsaturated Fats"] + X_scaled[, "Polyunsaturated Fats"],
-     # X_scaled[, "Fat"])
+# X_scaled[, Fats]
+# plot(X_scaled[, "Saturated_Fats"] + X_scaled[, "Monounsaturated_Fats"] + X_scaled[, "Polyunsaturated_Fats"],
+# X_scaled[, "Fat"])
+# abline(0, 1)
+# plot(unlist(X[, "Saturated_Fats"] + X[, "Monounsaturated_Fats"] + X[, "Polyunsaturated_Fats"]),
+#      unlist(X[, "Fat"]))
+# abline(0, 1)
+
+lasso_with_fat <- lm(`Caloric Value` ~ `Fat` + `Saturated_Fats` + `Monounsaturated_Fats` + `Polyunsaturated_Fats` + 
+          `Carbohydrates` + `Protein` + `Water` + `Vitamin A` + `Magnesium` + `Phosphorus`, data = FOOD_DATA)
+
+lasso_without_fat <- lm(`Caloric Value` ~ `Vitamin E` + `Saturated_Fats` + `Monounsaturated_Fats` + `Polyunsaturated_Fats` + 
+          `Carbohydrates` + `Protein` + `Cholesterol` + `Vitamin A` + `Magnesium` + `Phosphorus`, data = FOOD_DATA)
+vif(lasso_with_fat)
+vif(lasso_without_fat)
+summary(lasso_with_fat)
+summary(lasso_without_fat)
+
+fat_check_df <- FOOD_DATA %>% filter(`Saturated_Fats` + `Monounsaturated_Fats` + `Polyunsaturated_Fats` > `Fat`)
 
 
 # Spike Slab Prior
@@ -107,3 +124,4 @@ selected_vars
 
 
 inc_prob_sorted
+
