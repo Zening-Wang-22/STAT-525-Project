@@ -98,7 +98,7 @@ ss_fit <- lm.spike(
   y ~ .,
   data  = df_model,
   niter = 6000,                 # <-- only niter here
-  expected.model.size = 10    # prior sparsity belief
+  expected.model.size = 10    # your prior belief of how many predictors matter
 )
 
 burn_in <- 1000
@@ -115,9 +115,7 @@ inc_prob <- coef_table[, 5]
 inc_prob <- inc_prob[names(inc_prob) != "(Intercept)"]
 
 inc_prob_sorted <- sort(inc_prob, decreasing = TRUE)
-selected_vars <- names(inc_prob)[inc_prob > 0.5]
+selected_vars <- names(inc_prob)[inc_prob > 0.5] # keep any nutrient whose coefficient is nonzero in more than half the posterior samples.
 selected_vars
 
-
-inc_prob_sorted
 
