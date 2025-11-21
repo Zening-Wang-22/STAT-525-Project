@@ -2,6 +2,8 @@ library(dplyr)
 library(readr)
 library(tidyverse)
 library(monomvn)
+library(BoomSpikeSlab)
+
 
 FOOD_DATA_GROUP1 <- read_csv("FINAL FOOD DATASET/FOOD-DATA-GROUP1.csv")
 FOOD_DATA_GROUP2 <- read_csv("FINAL FOOD DATASET/FOOD-DATA-GROUP2.csv")
@@ -10,23 +12,28 @@ FOOD_DATA_GROUP4 <- read_csv("FINAL FOOD DATASET/FOOD-DATA-GROUP4.csv")
 FOOD_DATA_GROUP5 <- read_csv("FINAL FOOD DATASET/FOOD-DATA-GROUP5.csv")
 
 FOOD_DATA <- bind_rows(
-  mutate(FOOD_DATA_GROUP1, group = "group1"),
-  mutate(FOOD_DATA_GROUP2, group = "group2"),
-  mutate(FOOD_DATA_GROUP3, group = "group3"),
-  mutate(FOOD_DATA_GROUP4, group = "group4"),
-  mutate(FOOD_DATA_GROUP5, group = "group5")
+  dplyr::mutate(FOOD_DATA_GROUP1, group = "group1"),
+  dplyr::mutate(FOOD_DATA_GROUP2, group = "group2"),
+  dplyr::mutate(FOOD_DATA_GROUP3, group = "group3"),
+  dplyr::mutate(FOOD_DATA_GROUP4, group = "group4"),
+  dplyr::mutate(FOOD_DATA_GROUP5, group = "group5")
 ) %>%
-  dplyr::select(-1, -2) 
+  # remove first two columns
+  dplyr::select(-1, -2) %>%
+  # replace spaces with underscores in colnames
+  dplyr::rename_with(~ gsub(" ", "_", .x))
+
 
 # Preprocess
 df <- FOOD_DATA %>%
-  dplyr::select(-food, -group, -`Nutrition Density`) %>%   # not predictors for now
+  dplyr::select(-food, -group, -Nutrition_Density, -Fat) %>%
   drop_na()
 
-y <- df$`Caloric Value`
-X <- df %>% dplyr::select(-`Caloric Value`)
+y <- df$Caloric_Value
+X <- df %>% dplyr::select(-Caloric_Value)
 
 X_scaled <- scale(X)
+
 
 
 # Bayesian Lasso 
@@ -61,8 +68,42 @@ selected_nutrients <- colnames(X_scaled)[idx_sel]
 selected_nutrients
 
 # Fat multicollinearity
-X_scaled[, "Fat"]
-plot(X_scaled[, "Saturated Fats"] + X_scaled[, "Monounsaturated Fats"] + X_scaled[, "Polyunsaturated Fats"],
-     X_scaled[, "Fat"])
+# X_scaled[, "Fat"]
+# plot(X_scaled[, "Saturated Fats"] + X_scaled[, "Monounsaturated Fats"] + X_scaled[, "Polyunsaturated Fats"],
+     # X_scaled[, "Fat"])
 
 
+# Spike Slab Prior
+set.seed(123)
+
+df_model <- data.frame(
+  y = as.numeric(y),
+  as.data.frame(X_scaled)
+)
+
+ss_fit <- lm.spike(
+  y ~ .,
+  data  = df_model,
+  niter = 6000,                 # <-- only niter here
+  expected.model.size = 10    # prior sparsity belief
+)
+
+burn_in <- 1000
+
+ss_sum <- summary(ss_fit, burn = burn_in)
+
+# matrix with columns:
+# 1 post mean, 2 post sd,
+# 3 mean|nonzero, 4 sd|nonzero,
+# 5 Pr(nonzero)
+coef_table <- ss_sum$coefficients
+
+inc_prob <- coef_table[, 5]
+inc_prob <- inc_prob[names(inc_prob) != "(Intercept)"]
+
+inc_prob_sorted <- sort(inc_prob, decreasing = TRUE)
+selected_vars <- names(inc_prob)[inc_prob > 0.5]
+selected_vars
+
+
+inc_prob_sorted
