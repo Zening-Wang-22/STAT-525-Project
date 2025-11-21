@@ -69,19 +69,15 @@ selected_nutrients <- colnames(X_scaled)[idx_sel]
 selected_nutrients
 
 # Fat multicollinearity
-# X_scaled[, Fats]
-# plot(X_scaled[, "Saturated_Fats"] + X_scaled[, "Monounsaturated_Fats"] + X_scaled[, "Polyunsaturated_Fats"],
-# X_scaled[, "Fat"])
-# abline(0, 1)
-# plot(unlist(X[, "Saturated_Fats"] + X[, "Monounsaturated_Fats"] + X[, "Polyunsaturated_Fats"]),
-#      unlist(X[, "Fat"]))
-# abline(0, 1)
+plot(unlist(FOOD_DATA[, "Saturated_Fats"] + FOOD_DATA[, "Monounsaturated_Fats"] + FOOD_DATA[, "Polyunsaturated_Fats"]),
+    unlist(FOOD_DATA[, "Fat"]))
+abline(0, 1)
 
-lasso_with_fat <- lm(`Caloric Value` ~ `Fat` + `Saturated_Fats` + `Monounsaturated_Fats` + `Polyunsaturated_Fats` + 
-          `Carbohydrates` + `Protein` + `Water` + `Vitamin A` + `Magnesium` + `Phosphorus`, data = FOOD_DATA)
+lasso_with_fat <- lm(`Caloric_Value` ~ `Fat` + `Saturated_Fats` + `Monounsaturated_Fats` + `Polyunsaturated_Fats` + 
+          `Carbohydrates` + `Protein` + `Water` + `Vitamin_A` + `Magnesium` + `Phosphorus`, data = FOOD_DATA)
 
-lasso_without_fat <- lm(`Caloric Value` ~ `Vitamin E` + `Saturated_Fats` + `Monounsaturated_Fats` + `Polyunsaturated_Fats` + 
-          `Carbohydrates` + `Protein` + `Cholesterol` + `Vitamin A` + `Magnesium` + `Phosphorus`, data = FOOD_DATA)
+lasso_without_fat <- lm(`Caloric_Value` ~ `Vitamin_E` + `Saturated_Fats` + `Monounsaturated_Fats` + `Polyunsaturated_Fats` + 
+          `Carbohydrates` + `Protein` + `Cholesterol` + `Vitamin_A` + `Magnesium` + `Phosphorus`, data = FOOD_DATA)
 vif(lasso_with_fat)
 vif(lasso_without_fat)
 summary(lasso_with_fat)
