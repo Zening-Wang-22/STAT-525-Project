@@ -50,11 +50,12 @@ head(ranked_lasso, 20)
 beta_ci <- t(apply(bl_fit$beta, 2, quantile, probs = c(0.025, 0.975)))
 colnames(beta_ci) <- c("low", "high")
 
+# Selected nutrients from Bayesian Lasso
 selected_lasso_ci <- rownames(beta_ci)[beta_ci[, "low"] > 0 | beta_ci[, "high"] < 0]
 selected_lasso_ci # The Bayesian lasso thinks those predictors have credible, non-zero effects on "Caloric Value".
 
 idx_sel <- as.integer(sub("b\\.", "", selected_lasso_ci))
-idx_sel
+idx_sel 
 
 selected_nutrients <- colnames(X_scaled)[idx_sel]
 selected_nutrients
