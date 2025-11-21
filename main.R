@@ -20,7 +20,7 @@ FOOD_DATA <- bind_rows(
 
 # Preprocess
 df <- FOOD_DATA %>%
-  dplyr::select(-food, -group) %>%   # not predictors for now
+  dplyr::select(-food, -group, -`Nutrition Density`) %>%   # not predictors for now
   drop_na()
 
 y <- df$`Caloric Value`
@@ -60,7 +60,11 @@ idx_sel
 selected_nutrients <- colnames(X_scaled)[idx_sel]
 selected_nutrients
 
+# fat multicollinearity
+X_scaled[, "Fat"]
+print(X_scaled)
 
-
+plot(X_scaled[, "Saturated Fats"] + X_scaled[, "Monounsaturated Fats"] + X_scaled[, "Polyunsaturated Fats"],
+     X_scaled[, "Fat"])
 
 
