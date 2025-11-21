@@ -16,7 +16,7 @@ FOOD_DATA <- bind_rows(
   mutate(FOOD_DATA_GROUP4, group = "group4"),
   mutate(FOOD_DATA_GROUP5, group = "group5")
 ) %>%
-  select(-1, -2) 
+  dplyr::select(-1, -2) 
 
 # Preprocess
 df <- FOOD_DATA %>%
