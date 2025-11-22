@@ -73,6 +73,43 @@ plot(unlist(FOOD_DATA[, "Saturated_Fats"] + FOOD_DATA[, "Monounsaturated_Fats"] 
     unlist(FOOD_DATA[, "Fat"]))
 abline(0, 1)
 
+# Lasso without fat
+X_without_fat <- X %>% dplyr::select(-Fat)
+
+X_scaled_without_fat <- scale(X_without_fat)
+
+# Bayesian Lasso 
+set.seed(123)
+bl_fit_without_fat <- blasso(
+  X = X_scaled_without_fat,
+  y = y,
+  T = 10000,
+  thin = 5,
+  verb = 0
+)
+
+# Posterior mean of each coefficient
+beta_mean_without_fat <- apply(bl_fit_without_fat$beta, 2, mean)
+names(beta_mean_without_fat) <- colnames(X_scaled_without_fat)
+
+# Rank nutrients by absolute effect size
+ranked_lasso_without_fat <- sort(abs(beta_mean_without_fat), decreasing = TRUE)
+head(ranked_lasso_without_fat, 20)
+
+beta_ci_without_fat <- t(apply(bl_fit_without_fat$beta, 2, quantile, probs = c(0.025, 0.975)))
+colnames(beta_ci_without_fat) <- c("low", "high")
+
+# Selected nutrients from Bayesian Lasso
+selected_lasso_ci_without_fat <- rownames(beta_ci_without_fat)[beta_ci_without_fat[, "low"] > 0 | beta_ci_without_fat[, "high"] < 0]
+selected_lasso_ci_without_fat # The Bayesian lasso thinks those predictors have credible, non-zero effects on "Caloric Value".
+
+idx_sel_without_fat <- as.integer(sub("b\\.", "", selected_lasso_ci_without_fat))
+idx_sel_without_fat 
+
+selected_nutrients_without_fat <- colnames(X_scaled_without_fat)[idx_sel_without_fat]
+selected_nutrients_without_fat
+
+# Comparison of lasso with and without fat
 lasso_with_fat <- lm(`Caloric_Value` ~ `Fat` + `Saturated_Fats` + `Monounsaturated_Fats` + `Polyunsaturated_Fats` + 
           `Carbohydrates` + `Protein` + `Water` + `Vitamin_A` + `Magnesium` + `Phosphorus`, data = FOOD_DATA)
 
