@@ -28,7 +28,7 @@ FOOD_DATA <- bind_rows(
 
 # Preprocess
 df <- FOOD_DATA %>%
-  dplyr::select(-food, -group, -Nutrition_Density, -Fat) %>%
+  dplyr::select(-food, -group, -Nutrition_Density) %>%
   drop_na()
 
 y <- df$Caloric_Value
