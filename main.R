@@ -4,6 +4,7 @@ library(tidyverse)
 library(monomvn)
 library(BoomSpikeSlab)
 library(car)
+library(MASS)
 
 
 FOOD_DATA_GROUP1 <- read_csv("FINAL FOOD DATASET/FOOD-DATA-GROUP1.csv")
@@ -78,7 +79,7 @@ X_without_fat <- X %>% dplyr::select(-Fat)
 
 X_scaled_without_fat <- scale(X_without_fat)
 
-# Bayesian Lasso 
+# Bayesian Lasso without fat
 set.seed(123)
 bl_fit_without_fat <- blasso(
   X = X_scaled_without_fat,
@@ -120,6 +121,7 @@ vif(lasso_without_fat)
 summary(lasso_with_fat)
 summary(lasso_without_fat)
 
+# Investigating foods where sum of fats greater than fat
 fat_check_df <- FOOD_DATA %>% filter(`Saturated_Fats` + `Monounsaturated_Fats` + `Polyunsaturated_Fats` > `Fat`)
 
 
@@ -155,4 +157,46 @@ inc_prob_sorted <- sort(inc_prob, decreasing = TRUE)
 selected_vars <- names(inc_prob)[inc_prob > 0.5] # keep any nutrient whose coefficient is nonzero in more than half the posterior samples.
 selected_vars
 
+# Doing Bayesian linear regression with all predictors
+# Using a conjugate Normal-Inv-Gamma prior posterior
 
+# prior hyperparameters (noninformative)
+
+n <- nrow(X_scaled)
+p <- ncol(X_scaled)
+
+xi <- rep(0, p)
+Omega <- 10^3*diag(p)
+alpha <- 0.01
+b <- 0.01 # using b instead of beta for rate parameter for inv gamma to prevent confusion with betas coeffient in regression
+
+Omega_inverse <- solve(Omega)
+Q_beta <- t(as.matrix(X_scaled))%*%X_scaled + Omega_inverse
+Q_beta_inverse <- solve(Q_beta)
+l_beta <- t(as.matrix(X_scaled))%*%y + Omega_inverse%*%xi
+
+# sampling posterior
+samples <- 10^4
+sigma_2_samples <- rinvgamma(samples, alpha + n/2, b + t(y)%*%y/2 + 
+                              t(xi)%*%Omega_inverse%*%xi/2 - 
+                              t(l_beta)%*%Q_beta_inverse%*%l_beta/2)
+
+beta_samples <- matrix(NA, nrow = samples, ncol = p)
+for (s in 1:samples) {
+  beta_samples[s, ] <- mvrnorm(1, Q_beta_inverse%*%l_beta, 
+                               Sigma = sigma_2_samples[s]*Q_beta_inverse)
+}
+
+hist(sigma_2_samples, xlab = expression(sigma^2))
+
+# looking at credible interval of betas
+beta_summary <- data.frame(
+  term = c("intercept", colnames(X[, -1])),
+  mean = colMeans(beta_samples),
+  low = apply(beta_samples, 2, quantile, 0.025),
+  high = apply(beta_samples, 2, quantile, 0.975)
+)
+beta_summary
+
+selected_betas <- beta_summary[beta_summary[, "low"] > 0 | beta_summary[, "high"] < 0, ]
+selected_betas
