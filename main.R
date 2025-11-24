@@ -200,3 +200,86 @@ beta_summary
 
 selected_betas <- beta_summary[beta_summary[, "low"] > 0 | beta_summary[, "high"] < 0, ]
 selected_betas
+
+
+# EDA Plots
+
+# Density Plot for the Response
+df %>% 
+  filter(Caloric_Value <= quantile(Caloric_Value, 0.975)) %>% 
+  ggplot(aes(x = Caloric_Value)) +
+  geom_density(alpha = 0.5, fill = "skyblue") +
+  labs(
+    x = "Caloric Value",
+    y = "Density"
+  )
+
+# Density Plots for some regressors
+some_regressors <- c(
+  "Fat", "Carbohydrates", "Protein",
+  "Saturated_Fats", "Monounsaturated_Fats", "Polyunsaturated_Fats",
+  "Sugars", "Vitamin_A", "Vitamin_E",
+  "Water", "Cholesterol", "Magnesium")
+
+df_long <- df[c(some_regressors, "Caloric_Value")] %>%
+  filter(if_all(all_of(some_regressors), ~ . <= quantile(., 0.975))) %>% # . >= quantile(., 0.025) &
+  pivot_longer(
+    cols = all_of(some_regressors), # or cols = c(A, B, C)
+    names_to = "variable",
+    values_to = "value"
+  )
+
+ggplot(df_long, aes(x = value)) +
+  geom_density(alpha = 0.5, fill = "skyblue") +
+  facet_wrap(~ variable, scales = "free") + # Creates separate plots for each variable
+  theme_minimal() +
+  theme(legend.position = "none") +
+  labs(
+    x = "Regressor Value",
+    y = "Density"
+  )
+
+# Correlation Plot for some regressors
+library(corrplot)
+
+M = cor(df[c("Caloric_Value", "Fat", "Saturated_Fats", "Monounsaturated_Fats",
+             "Polyunsaturated_Fats", "Carbohydrates", "Sugars", "Protein")])
+colnames(M) <- c("Caloric Value", "Fats", "Saturated Fats", "Monounsaturated Fats",
+                 "Polyunsaturated Fats", "Carbohydrates", "Sugars", "Protein")
+rownames(M) <- colnames(M)
+corrplot.mixed(M, diag="l", tl.pos = "lt", tl.col = "#000011", tl.srt = 45)
+
+# Regressors Vs Response
+num_labels <- c(
+  "Caloric_Value" = "Caloric Value",
+  "Saturated_Fats" = "Saturated Fats",
+  "Monounsaturated_Fats" = "Monounsaturated Fats",
+  "Polyunsaturated_Fats" = "Polyunsaturated Fats",
+  "Fat" = "Fat",
+  "Carbohydrates" = "Carbohydrates",
+  "Sugars" = "Sugars",
+  "Protein" = "Protein"
+)
+
+main_regressors <- c(
+  "Fat", "Carbohydrates", "Protein",
+  "Saturated_Fats", "Monounsaturated_Fats", "Polyunsaturated_Fats")
+
+df_long <- df[c(main_regressors, "Caloric_Value")] %>%
+  pivot_longer(
+    cols = all_of(main_regressors),
+    names_to = "regressor_variable",
+    values_to = "regressor_value"
+  )
+
+
+ggplot(df_long, aes(x = regressor_value, y = Caloric_Value)) +
+  geom_point(alpha = 0.5, color = "skyblue") +
+  facet_wrap(~ factor(regressor_variable, 
+                      levels = main_regressors), 
+             scales = "free",
+             labeller = as_labeller(num_labels)) +
+  labs(
+    x = "Regressor Value",
+    y = "Caloric Value (Response)") +
+  theme_minimal()
