@@ -705,3 +705,38 @@ r2_table <- tibble(
 )
 
 print(r2_table)
+
+
+# ===============================================
+# Model 5: Only Fat + Carbohydrates + Protein
+# ===============================================
+
+vars_m5 <- c("Fat", "Carbohydrates", "Protein")
+
+# make sure they exist
+stopifnot(all(vars_m5 %in% colnames(X_train)))
+
+# subset original (unscaled) train/test
+X_train_m5 <- X_train[, vars_m5, drop = FALSE]
+X_test_m5  <- X_test[,  vars_m5, drop = FALSE]
+
+# scale using TRAIN stats of these 3 variables
+mu_m5 <- apply(X_train_m5, 2, mean)
+sd_m5 <- apply(X_train_m5, 2, sd)
+
+Xtr_m5_sc <- scale_with_train(X_train_m5, mu_m5, sd_m5)
+Xte_m5_sc <- scale_with_train(X_test_m5,  mu_m5, sd_m5)
+
+m5 <- fit_conjugate_blr_r2(Xtr_m5_sc, y_train,
+                           Xte_m5_sc, y_test)
+
+# add to comparison table
+r2_table <- r2_table %>%
+  add_row(
+    Model = "Model 5: Fat+Carbs+Protein only",
+    Test_R2 = m5$r2,
+    Num_Predictors = ncol(Xtr_m5_sc)
+  )
+
+print(r2_table)
+
