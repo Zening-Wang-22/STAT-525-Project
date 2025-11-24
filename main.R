@@ -528,7 +528,7 @@ X_test_scaled  <- scale_with_train(X_test,  train_means, train_sds)
 # ===============================================
 #  Helper: Conjugate Bayesian LR + Test R^2
 # ===============================================
-fit_conjugate_blr_r2 <- function(Xtr_sc, ytr, Xte_sc, yte,
+fit_conjugate_blr <- function(Xtr_sc, ytr, Xte_sc, yte,
                                  samples = 1e4,
                                  alpha0 = 0.01, b0 = 0.01,
                                  Omega_scale = 1e3) {
@@ -568,18 +568,21 @@ fit_conjugate_blr_r2 <- function(Xtr_sc, ytr, Xte_sc, yte,
   # posterior mean predictions on test
   yhat_test <- as.vector(Xte_sc %*% beta_post_mean)
   
+  # Test MSE
+  mse <- mean((yte - yhat_test)^2)
+  
   # test R^2
   sse <- sum((yte - yhat_test)^2)
   sst <- sum((yte - mean(yte))^2)
   r2  <- 1 - sse / sst
   
-  list(r2 = r2, beta_post_mean = beta_post_mean)
+  list(r2 = r2, mse = mse, beta_post_mean = beta_post_mean)
 }
 
 # ===============================================
 # Model 1: Full model (all predictors)
 # ===============================================
-m1 <- fit_conjugate_blr_r2(X_train_scaled, y_train,
+m1 <- fit_conjugate_blr(X_train_scaled, y_train,
                            X_test_scaled,  y_test)
 
 # ===============================================
@@ -609,7 +612,7 @@ selected_nutrients_tr <- colnames(X_train_scaled)[idx_sel_tr]
 Xtr_BL_F <- X_train_scaled[, selected_nutrients_tr, drop = FALSE]
 Xte_BL_F <- X_test_scaled[,  selected_nutrients_tr, drop = FALSE]
 
-m2 <- fit_conjugate_blr_r2(Xtr_BL_F, y_train,
+m2 <- fit_conjugate_blr(Xtr_BL_F, y_train,
                            Xte_BL_F, y_test)
 
 # ===============================================
@@ -648,7 +651,7 @@ selected_nutrients_wofat_tr <- colnames(Xtr_wofat_sc)[idx_sel_wofat_tr]
 Xtr_BL <- Xtr_wofat_sc[, selected_nutrients_wofat_tr, drop = FALSE]
 Xte_BL <- Xte_wofat_sc[, selected_nutrients_wofat_tr, drop = FALSE]
 
-m3 <- fit_conjugate_blr_r2(Xtr_BL, y_train,
+m3 <- fit_conjugate_blr(Xtr_BL, y_train,
                            Xte_BL, y_test)
 
 # ===============================================
@@ -684,27 +687,9 @@ if (length(selected_vars_tr) == 0) {
 Xtr_SS <- X_train_scaled[, selected_vars_tr, drop = FALSE]
 Xte_SS <- X_test_scaled[,  selected_vars_tr, drop = FALSE]
 
-m4 <- fit_conjugate_blr_r2(Xtr_SS, y_train,
+m4 <- fit_conjugate_blr(Xtr_SS, y_train,
                            Xte_SS, y_test)
 
-# ===============================================
-# Compare Test R^2 Across Models
-# ===============================================
-r2_table <- tibble(
-  Model = c("Model 1: Full", 
-            "Model 2: BLasso (with Fat)", 
-            "Model 3: BLasso (no Fat)", 
-            "Model 4: Spike&Slab"),
-  Test_R2 = c(m1$r2, m2$r2, m3$r2, m4$r2),
-  Num_Predictors = c(
-    ncol(X_train_scaled),
-    ncol(Xtr_BL_F),
-    ncol(Xtr_BL),
-    ncol(Xtr_SS)
-  )
-)
-
-print(r2_table)
 
 
 # ===============================================
@@ -727,16 +712,26 @@ sd_m5 <- apply(X_train_m5, 2, sd)
 Xtr_m5_sc <- scale_with_train(X_train_m5, mu_m5, sd_m5)
 Xte_m5_sc <- scale_with_train(X_test_m5,  mu_m5, sd_m5)
 
-m5 <- fit_conjugate_blr_r2(Xtr_m5_sc, y_train,
+m5 <- fit_conjugate_blr(Xtr_m5_sc, y_train,
                            Xte_m5_sc, y_test)
 
-# add to comparison table
-r2_table <- r2_table %>%
-  add_row(
-    Model = "Model 5: Fat+Carbs+Protein only",
-    Test_R2 = m5$r2,
-    Num_Predictors = ncol(Xtr_m5_sc)
+r2_table <- tibble(
+  Model = c("Model 1: Full",
+            "Model 2: BLasso (with Fat)",
+            "Model 3: BLasso (no Fat)",
+            "Model 4: Spike&Slab",
+            "Model 5: Fat+Carbs+Protein only"),
+  Test_R2 = c(m1$r2, m2$r2, m3$r2, m4$r2, m5$r2),
+  Test_MSE = c(m1$mse, m2$mse, m3$mse, m4$mse, m5$mse),
+  Num_Predictors = c(
+    ncol(X_train_scaled),
+    ncol(Xtr_BL_F),
+    ncol(Xtr_BL),
+    ncol(Xtr_SS),
+    ncol(Xtr_m5_sc)
   )
+)
 
 print(r2_table)
+
 
