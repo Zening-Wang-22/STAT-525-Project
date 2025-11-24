@@ -526,7 +526,7 @@ X_train_scaled <- scale_with_train(X_train, train_means, train_sds)
 X_test_scaled  <- scale_with_train(X_test,  train_means, train_sds)
 
 # ===============================================
-#  Helper: Conjugate Bayesian LR + Test R^2
+#  Helper: Conjugate Bayesian LR + Test R^2 + Test MSE
 # ===============================================
 fit_conjugate_blr <- function(Xtr_sc, ytr, Xte_sc, yte,
                                  samples = 1e4,
