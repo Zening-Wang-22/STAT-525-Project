@@ -321,7 +321,7 @@ hist(sigma_2_samples_full, xlab = expression(sigma^2))
 
 # Credible intervals of betas
 beta_summary_full <- data.frame(
-  term = c("intercept", colnames(X[, -1])),
+  term = c(X_scaled),
   mean = colMeans(beta_samples_full),
   low = apply(beta_samples_full, 2, quantile, 0.025),
   high = apply(beta_samples_full, 2, quantile, 0.975)
@@ -548,9 +548,9 @@ X_test_scaled  <- scale_with_train(X_test,  train_means, train_sds)
 #  Helper: Conjugate Bayesian LR + Test R^2 + Test MSE
 # ===============================================
 fit_conjugate_blr <- function(Xtr_sc, ytr, Xte_sc, yte,
-                                 samples = 1e4,
-                                 alpha0 = 0.01, b0 = 0.01,
-                                 Omega_scale = 1e3) {
+                              samples = 1e4,
+                              alpha0 = 0.01, b0 = 0.01,
+                              Omega_scale = 1e3) {
   
   n_tr <- nrow(Xtr_sc)
   p_tr <- ncol(Xtr_sc)
@@ -602,7 +602,7 @@ fit_conjugate_blr <- function(Xtr_sc, ytr, Xte_sc, yte,
 # Model 1: Full model (all predictors)
 # ===============================================
 m1 <- fit_conjugate_blr(X_train_scaled, y_train,
-                           X_test_scaled,  y_test)
+                        X_test_scaled,  y_test)
 
 # ===============================================
 # Model 2: Bayesian Lasso selection (with Fat)
@@ -632,7 +632,7 @@ Xtr_BL_F <- X_train_scaled[, selected_nutrients_tr, drop = FALSE]
 Xte_BL_F <- X_test_scaled[,  selected_nutrients_tr, drop = FALSE]
 
 m2 <- fit_conjugate_blr(Xtr_BL_F, y_train,
-                           Xte_BL_F, y_test)
+                        Xte_BL_F, y_test)
 
 # ===============================================
 # Model 3: Bayesian Lasso selection (without Fat)
@@ -671,7 +671,7 @@ Xtr_BL <- Xtr_wofat_sc[, selected_nutrients_wofat_tr, drop = FALSE]
 Xte_BL <- Xte_wofat_sc[, selected_nutrients_wofat_tr, drop = FALSE]
 
 m3 <- fit_conjugate_blr(Xtr_BL, y_train,
-                           Xte_BL, y_test)
+                        Xte_BL, y_test)
 
 # ===============================================
 # Model 4: Spike & Slab selection
@@ -707,7 +707,7 @@ Xtr_SS <- X_train_scaled[, selected_vars_tr, drop = FALSE]
 Xte_SS <- X_test_scaled[,  selected_vars_tr, drop = FALSE]
 
 m4 <- fit_conjugate_blr(Xtr_SS, y_train,
-                           Xte_SS, y_test)
+                        Xte_SS, y_test)
 
 
 
@@ -732,7 +732,7 @@ Xtr_m5_sc <- scale_with_train(X_train_m5, mu_m5, sd_m5)
 Xte_m5_sc <- scale_with_train(X_test_m5,  mu_m5, sd_m5)
 
 m5 <- fit_conjugate_blr(Xtr_m5_sc, y_train,
-                           Xte_m5_sc, y_test)
+                        Xte_m5_sc, y_test)
 
 r2_table <- tibble(
   Model = c("Model 1: Full",
@@ -752,5 +752,3 @@ r2_table <- tibble(
 )
 
 print(r2_table)
-
-
