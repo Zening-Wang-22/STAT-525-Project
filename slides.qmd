@@ -16,8 +16,6 @@ editor:
 
 -   What nutrients have and don't have caloric value?
 
--   Do different types of food show different relationships between
-    nutrients and caloric value?
 
 ## Food Nutrition Dataset
 
