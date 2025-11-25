@@ -5,6 +5,11 @@
 \usepackage{listings}
 \usepackage{float}
 \usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage[margin=1in]{geometry}
+
 
 % \SweaveOpts{concordance=TRUE, echo=TRUE}
 
@@ -14,6 +19,47 @@
 \author{Thy Luong, Evgeniia Selezneva, Jasmine Wang}
 \date{\today}
 \maketitle
+
+% load_data chunk
+<<load_data, echo=FALSE, results='hide', include=FALSE, cache=FALSE>>=
+library(dplyr)
+library(readr)
+library(tidyverse)
+library(monomvn)
+library(BoomSpikeSlab)
+library(car)
+library(MASS)
+library(ggplot2)
+library(corrplot)
+
+FOOD_DATA_GROUP1 <- read_csv("FINAL FOOD DATASET/FOOD-DATA-GROUP1.csv")
+FOOD_DATA_GROUP2 <- read_csv("FINAL FOOD DATASET/FOOD-DATA-GROUP2.csv")
+FOOD_DATA_GROUP3 <- read_csv("FINAL FOOD DATASET/FOOD-DATA-GROUP3.csv")
+FOOD_DATA_GROUP4 <- read_csv("FINAL FOOD DATASET/FOOD-DATA-GROUP4.csv")
+FOOD_DATA_GROUP5 <- read_csv("FINAL FOOD DATASET/FOOD-DATA-GROUP5.csv")
+
+FOOD_DATA <- bind_rows(
+  dplyr::mutate(FOOD_DATA_GROUP1, group = "group1"),
+  dplyr::mutate(FOOD_DATA_GROUP2, group = "group2"),
+  dplyr::mutate(FOOD_DATA_GROUP3, group = "group3"),
+  dplyr::mutate(FOOD_DATA_GROUP4, group = "group4"),
+  dplyr::mutate(FOOD_DATA_GROUP5, group = "group5")
+) %>%
+  # remove first two columns
+  dplyr::select(-1, -2) %>%
+  # replace spaces with underscores in colnames
+  dplyr::rename_with(~ gsub(" ", "_", .x))
+
+df <- FOOD_DATA %>%
+  dplyr::select(-food, -group, -Nutrition_Density) %>%
+  drop_na()
+
+y <- df$Caloric_Value
+X <- df %>% dplyr::select(-Caloric_Value)
+
+X_scaled <- scale(X)
+@
+
 
 \section{Problem Statement}
 Everybody needs to eat food, but it is often complicated to understand what exactly we are putting into our bodies and stay informed about the quality of our diet. Our project aims to get a better understanding of food nutrition to help demystify this process. We wanted to explore how different types of nutrition affected caloric value. We found...
@@ -27,23 +73,114 @@ We used food nutrition data from Kaggle compiled from scrapping the internet. It
 
 % include eda plots
 
+\newpage
+<<figure_setup, include=FALSE>>=
+knitr::opts_chunk$set(fig.width=8.5, fig.height=5)
+@
+
+<<caloric_value_density_plot, echo=FALSE, fig.align="center", fig.cap="Density Plot of the Caloric Value", fig.pos="!ht", warning=FALSE>>=
+df %>% 
+  filter(Caloric_Value <= quantile(Caloric_Value, 0.975)) %>% 
+  ggplot(aes(x = Caloric_Value)) +
+  geom_density(alpha = 0.5, fill = "skyblue") +
+  labs(
+    x = "Caloric Value",
+    y = "Density"
+  )
+@
+
+<<regressor_density_plot, echo=FALSE, fig.align="center", fig.cap="Density Plot of Some Regressors", fig.pos="!ht", warning=FALSE>>=
+# Density Plots for some regressors
+some_regressors <- c(
+  "Fat", "Carbohydrates", "Protein",
+  "Saturated_Fats", "Monounsaturated_Fats", "Polyunsaturated_Fats",
+  "Sugars", "Vitamin_A", "Vitamin_E",
+  "Water", "Cholesterol", "Magnesium")
+
+df_long <- df[c(some_regressors, "Caloric_Value")] %>%
+  filter(if_all(all_of(some_regressors), ~ . <= quantile(., 0.975))) %>% # . >= quantile(., 0.025) &
+  pivot_longer(
+    cols = all_of(some_regressors), # or cols = c(A, B, C)
+    names_to = "variable",
+    values_to = "value"
+  )
+
+ggplot(df_long, aes(x = value)) +
+  geom_density(alpha = 0.5, fill = "skyblue") +
+  facet_wrap(~ variable, scales = "free") + # Creates separate plots for each variable
+  theme_minimal() +
+  theme(legend.position = "none") +
+  labs(
+    x = "Regressor Value",
+    y = "Density"
+  )
+@
+
+<<regressor_corr_plot, echo=FALSE, fig.align="center", fig.cap="Correlation Plot of Some Regressors", fig.pos="!ht", warning=FALSE>>=
+M = cor(df[c("Caloric_Value", "Fat", "Saturated_Fats", "Monounsaturated_Fats",
+             "Polyunsaturated_Fats", "Carbohydrates", "Sugars", "Protein")])
+colnames(M) <- c("Caloric Value", "Fats", "Saturated Fats", "Monounsaturated Fats",
+                 "Polyunsaturated Fats", "Carbohydrates", "Sugars", "Protein")
+rownames(M) <- colnames(M)
+corrplot.mixed(M, diag="l", tl.pos = "lt", tl.col = "#000011", tl.srt = 45)
+@
+
+<<caloric_value_vs_regressor_density_plot, echo=FALSE, fig.align="center", fig.cap="Caloric Value vs. Regressors Plot", fig.pos="!ht", warning=FALSE>>=
+# Regressors Vs Response
+num_labels <- c(
+  "Caloric_Value" = "Caloric Value",
+  "Saturated_Fats" = "Saturated Fats",
+  "Monounsaturated_Fats" = "Monounsaturated Fats",
+  "Polyunsaturated_Fats" = "Polyunsaturated Fats",
+  "Fat" = "Fat",
+  "Carbohydrates" = "Carbohydrates",
+  "Sugars" = "Sugars",
+  "Protein" = "Protein"
+)
+
+main_regressors <- c(
+  "Fat", "Carbohydrates", "Protein",
+  "Saturated_Fats", "Monounsaturated_Fats", "Polyunsaturated_Fats")
+
+df_long <- df[c(main_regressors, "Caloric_Value")] %>%
+  pivot_longer(
+    cols = all_of(main_regressors),
+    names_to = "regressor_variable",
+    values_to = "regressor_value"
+  )
+
+
+ggplot(df_long, aes(x = regressor_value, y = Caloric_Value)) +
+  geom_point(alpha = 0.5, color = "skyblue") +
+  facet_wrap(~ factor(regressor_variable, 
+                      levels = main_regressors), 
+             scales = "free",
+             labeller = as_labeller(num_labels)) +
+  labs(
+    x = "Regressor Value",
+    y = "Caloric Value (Response)") +
+  theme_minimal()
+@
+
 
 \section{Data Analysis and Results}
 \subsection{Bayesian Linear Regression}
 For our regression model, we used $Y = X\beta + \epsilon$ where $Y \in \mathbb{R}$, $X$ is $n \times p$, $\beta \in \mathbb{R}^p$, and $\epsilon \sim N_n(0, \Sigma)$. In particular, $Y$ is our response variable (caloric value data), $X$ is the design matrix of independent observations of the predictors (nutrients data), $\beta$ are the regression coefficients which corresponds to our predictors, and $\epsilon$ is the random error. We will assume the errors are independent $n$ is the number of rows in our data (2,395) and $p$ is the number of predictors use (at most 32). \\
 
 \noindent
-We decided to use a multivariate normal distribution for the prior on $\beta$ and an inverse-gamma distribution 
-
-
+We decided to use a multivariate normal distribution for the prior on $\beta$ and an inverse-gamma distribution on $\sigma_2$.
 
 \subsection{Bayesian Variable Selection}
 Not all the predictors we have in our dataset are necessarily useful for predicting our response variable, caloric value. There are various Bayesian variable selection methods to help with this issue. For this analysis, we chose to use Bayesian lasso and spike-and-slab. \\
 
 \noindent
-Bayesian lasso is a method 
+Bayesian lasso is a regularization method used in regression to decrease variance at the cost of increasing bias. Instead of using an estimation of ordinary least squares, it uses $L_1$-constrained least squares by adding an $L_1$ penalty. As opposed to some other regularization methods, Bayesian lasso can reduce irrelevant coefficients to zero by penalty.
+$$\min_{\beta} \Big( \dfrac{1}{n} || Y - X \beta ||^2_2 + \lambda ||\beta||_1\Big)$$
 
-
+\noindent
+Spike-and-slab regression uses a mixture prior that sorts coefficients into a "spike" distribution (mass around zero), or a wide, diffused "slab" distribution. This prior is conditional on $\gamma_i \sim Bernoulli$ which represents whether $\beta_i$ is included.
+$$\beta_i\, |\, \gamma_i \sim (1 - \gamma_i)\, \mathcal{N}(0,\, \tau_o^{-1}) + \gamma_i\, \mathcal{N}(0,\, \tau_1^{-1}),$$
+This results in a posterior that can give the probability of each $\beta_i$ given the data. From there we can use MCMC methods to get the posterior inclusion probability (PIP) of $\gamma_i$ to decide whether to include $\beta_i$ in the model. This PIP is representative of the proportion of samples in MCMC that resulted in a model with $\beta_i$. Our threshold for including $\beta_i$ was 0.5.
 
 \section{Summary and Discussion}
 
@@ -73,5 +210,6 @@ Bayesian lasso is a method
 <<chunk_name, echo=FALSE, warning=FALSE, message=FALSE, result = "hide">>=
 # code chunk
 @
+
 
 \end{document}

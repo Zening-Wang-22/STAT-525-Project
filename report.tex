@@ -55,6 +55,11 @@
 \usepackage{listings}
 \usepackage{float}
 \usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage[margin=1in]{geometry}
+
 
 % \SweaveOpts{concordance=TRUE, echo=TRUE}
 \IfFileExists{upquote.sty}{\usepackage{upquote}}{}
@@ -64,6 +69,10 @@
 \author{Thy Luong, Evgeniia Selezneva, Jasmine Wang}
 \date{\today}
 \maketitle
+
+% load_data chunk
+
+
 
 \section{Problem Statement}
 Everybody needs to eat food, but it is often complicated to understand what exactly we are putting into our bodies and stay informed about the quality of our diet. Our project aims to get a better understanding of food nutrition to help demystify this process. We wanted to explore how different types of nutrition affected caloric value. We found...
@@ -77,23 +86,76 @@ We used food nutrition data from Kaggle compiled from scrapping the internet. It
 
 % include eda plots
 
+\newpage
+
+
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{figure}[!ht]
+
+{\centering \includegraphics[width=\maxwidth]{figure/caloric_value_density_plot-1} 
+
+}
+
+\caption[Density Plot of the Caloric Value]{Density Plot of the Caloric Value}\label{fig:caloric_value_density_plot}
+\end{figure}
+
+\end{knitrout}
+
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{figure}[!ht]
+
+{\centering \includegraphics[width=\maxwidth]{figure/regressor_density_plot-1} 
+
+}
+
+\caption[Density Plot of Some Regressors]{Density Plot of Some Regressors}\label{fig:regressor_density_plot}
+\end{figure}
+
+\end{knitrout}
+
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{figure}[!ht]
+
+{\centering \includegraphics[width=\maxwidth]{figure/regressor_corr_plot-1} 
+
+}
+
+\caption[Correlation Plot of Some Regressors]{Correlation Plot of Some Regressors}\label{fig:regressor_corr_plot}
+\end{figure}
+
+\end{knitrout}
+
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{figure}[!ht]
+
+{\centering \includegraphics[width=\maxwidth]{figure/caloric_value_vs_regressor_density_plot-1} 
+
+}
+
+\caption[Caloric Value vs]{Caloric Value vs. Regressors Plot}\label{fig:caloric_value_vs_regressor_density_plot}
+\end{figure}
+
+\end{knitrout}
+
 
 \section{Data Analysis and Results}
 \subsection{Bayesian Linear Regression}
 For our regression model, we used $Y = X\beta + \epsilon$ where $Y \in \mathbb{R}$, $X$ is $n \times p$, $\beta \in \mathbb{R}^p$, and $\epsilon \sim N_n(0, \Sigma)$. In particular, $Y$ is our response variable (caloric value data), $X$ is the design matrix of independent observations of the predictors (nutrients data), $\beta$ are the regression coefficients which corresponds to our predictors, and $\epsilon$ is the random error. We will assume the errors are independent $n$ is the number of rows in our data (2,395) and $p$ is the number of predictors use (at most 32). \\
 
 \noindent
-We decided to use a multivariate normal distribution for the prior on $\beta$ and an inverse-gamma distribution 
-
-
+We decided to use a multivariate normal distribution for the prior on $\beta$ and an inverse-gamma distribution on $\sigma_2$.
 
 \subsection{Bayesian Variable Selection}
 Not all the predictors we have in our dataset are necessarily useful for predicting our response variable, caloric value. There are various Bayesian variable selection methods to help with this issue. For this analysis, we chose to use Bayesian lasso and spike-and-slab. \\
 
 \noindent
-Bayesian lasso is a method 
+Bayesian lasso is a regularization method used in regression to decrease variance at the cost of increasing bias. Instead of using an estimation of ordinary least squares, it uses $L_1$-constrained least squares by adding an $L_1$ penalty. As opposed to some other regularization methods, Bayesian lasso can reduce irrelevant coefficients to zero by penalty.
+$$\min_{\beta} \Big( \dfrac{1}{n} || Y - X \beta ||^2_2 + \lambda ||\beta||_1\Big)$$
 
-
+\noindent
+Spike-and-slab regression uses a mixture prior that sorts coefficients into a "spike" distribution (mass around zero), or a wide, diffused "slab" distribution. This prior is conditional on $\gamma_i \sim Bernoulli$ which represents whether $\beta_i$ is included.
+$$\beta_i\, |\, \gamma_i \sim (1 - \gamma_i)\, \mathcal{N}(0,\, \tau_o^{-1}) + \gamma_i\, \mathcal{N}(0,\, \tau_1^{-1}),$$
+This results in a posterior that can give the probability of each $\beta_i$ given the data. From there we can use MCMC methods to get the posterior inclusion probability (PIP) of $\gamma_i$ to decide whether to include $\beta_i$ in the model. This PIP is representative of the proportion of samples in MCMC that resulted in a model with $\beta_i$. Our threshold for including $\beta_i$ was 0.5.
 
 \section{Summary and Discussion}
 
@@ -115,6 +177,7 @@ Bayesian lasso is a method
 % how should we reference class material ? waiting for email from dr. li
 
 \section{Self-Reflection (Individual)}
+
 
 
 
