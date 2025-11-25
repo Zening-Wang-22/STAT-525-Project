@@ -106,15 +106,35 @@ FOOD_DATA %>%
 # Bayesian Analysis
 
 ## Bayesian Lasso Regression: Theory
+<!-- $$\text{Regularization:}\quad \min_{\beta} \Big( \dfrac{1}{n} || Y - X \beta ||^2_2 + \lambda ||\beta||\Big)$$ -->
+<!-- <!-- $$\text{equivalent to: } \min_{\beta} \dfrac{1}{n} || Y - X \beta ||^2_2, \quad \text{s.t. }\,\, ||\beta|| \le \tau$$ --> 
 
-$$\text{Regularization:}\quad \min_{\beta} \Big( \dfrac{1}{n} || Y - X \beta ||^2_2 + \lambda ||\beta||\Big)$$
-<!-- $$\text{equivalent to: } \min_{\beta} \dfrac{1}{n} || Y - X \beta ||^2_2, \quad \text{s.t. }\,\, ||\beta|| \le \tau$$ -->
+<!-- $$\mathbf{y} | \mu, \mathbf{X}, \boldsymbol{\beta}, \sigma^2 \sim N_n(\mu \mathbf{1}_n + \mathbf{X}\boldsymbol{\beta}, \sigma^2 \mathbf{I}_n)$$ -->
 
-$$\mathbf{y} | \mu, \mathbf{X}, \boldsymbol{\beta}, \sigma^2 \sim N_n(\mu \mathbf{1}_n + \mathbf{X}\boldsymbol{\beta}, \sigma^2 \mathbf{I}_n)$$
+<!-- $$\boldsymbol{\beta} | \sigma^2, \tau_1^2, \dots, \tau_p^2 \sim N_p(\mathbf{0}, \sigma^2 \mathbf{D}_{\tau})$$ -->
 
-$$\boldsymbol{\beta} | \sigma^2, \tau_1^2, \dots, \tau_p^2 \sim N_p(\mathbf{0}, \sigma^2 \mathbf{D}_{\tau})$$
+<!-- $$\text{where}\quad \mathbf{D}_{\tau} = \text{diag}(\tau_1^2, \dots, \tau_p^2)$$ -->
+$$
+\beta_j \mid \tau_j \sim N(0,\ \sigma^2 \tau_j),
+\qquad
+\tau_j \sim \text{Exp}(\lambda^2/2)
+$$
+Each coefficient has a **local shrinkage parameter** $\tau_j$
+  → implements the Laplace prior through a Normal–Exponential mixture.
 
-$$\text{where}\quad \mathbf{D}_{\tau} = \text{diag}(\tau_1^2, \dots, \tau_p^2)$$
+* **Small $\tau_j$**
+  → $\sigma^2 \tau_j$ is tiny
+  → $\beta_j$ is strongly shrunk toward 0
+  → indicates an unimportant variable
+
+* **Large $\tau_j$**
+  → larger variance
+  → $\beta_j$ is less shrunk
+  → indicates an important variable
+
+**Variable selection:**
+Use the posterior of $\beta_j$; a common rule is to check whether its **credible interval excludes 0**.
+
 
 ## Bayesian Lasso Regression: Results
 
@@ -219,25 +239,26 @@ selected_nutrients_without_fat
 
 <!-- Likelihood: $p(y \mid \beta,\sigma^2) \propto \exp\left(-\frac{1}{2\sigma^2}\|y - X\beta\|^2\right)$ -->
 
-For each coefficient $\beta_j$, introduce an \textbf{inclusion indicator}
+* For each coefficient $\beta_j$, introduce an \textbf{inclusion indicator}
 $\gamma_j \in \{0,1\}$: $$
     \gamma_j \sim \mathrm{Bernoulli}(\pi)
   $$ $$
     \beta_j \mid \gamma_j \sim 
     (1-\gamma_j)\,\delta_0 
     \;+\; 
-    \gamma_j\,N(0,\tau^2)
-  $$ \textbf{Spike} $(\delta_0)$: strong prior mass at $0$ $\Rightarrow$
+    \gamma_j\,N(0,\tau^2)$$ 
+    
+* \textbf{Spike} $(\delta_0)$: strong prior mass at $0$ $\Rightarrow$
 variable excluded
 
-\textbf{Slab} $(N(0,\tau^2))$: diffuse prior
+* \textbf{Slab} $(N(0,\tau^2))$: diffuse prior
 $\Rightarrow$ variable can be nonzero
 
-\textbf{Joint posterior}: $p(\beta,\gamma \mid y,X) \propto p(y \mid \beta)\,p(\beta \mid \gamma)\,p(\gamma)$ 
+* \textbf{Joint posterior}: $p(\beta,\gamma \mid y,X) \propto p(y \mid \beta)\,p(\beta \mid \gamma)\,p(\gamma)$ 
 
-\textbf{Posterior inclusion probability (PIP)} for variable $j$: $\mathrm{PIP}_j = P(\gamma_j = 1 \mid y,X) = \sum_{\gamma_{-j}} \int p(\beta,\gamma \mid y,X)\, d\beta$ 
+* \textbf{Posterior inclusion probability (PIP)} for variable $j$: $\mathrm{PIP}_j = P(\gamma_j = 1 \mid y,X) = \sum_{\gamma_{-j}} \int p(\beta,\gamma \mid y,X)\, d\beta$ 
 
-\textbf{Selection rule (threshold = 0.5)}: select variable $j$ if $\mathrm{PIP}_j > 0.5$. 
+* \textbf{Selection rule (threshold = 0.5)}: select variable $j$ if $\mathrm{PIP}_j > 0.5$. 
 
 ## Spike-and-Slab Prior: Results
 
