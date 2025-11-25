@@ -3,6 +3,9 @@ title: "Why our food is so caloric?"
 subtitle: "Bayesian Linear Regression of Food Nutrition"
 author: "Thy Luong, Evgeniia Selezneva, Jasmine Wang"
 format: beamer
+editor: 
+  markdown: 
+    wrap: 72
 ---
 
 # Introduction
@@ -13,9 +16,8 @@ format: beamer
 
 -   What nutrients have and don't have caloric value?
 
--   Do different types of food show different relationships between nutrients
-and caloric value?
-
+-   Do different types of food show different relationships between
+    nutrients and caloric value?
 
 ## Food Nutrition Dataset
 
@@ -35,7 +37,8 @@ and caloric value?
 
 \
 
-Source: [Kaggle.com](https://www.kaggle.com/datasets/utsavdey1410/food-nutrition-dataset/data)
+Source:
+[Kaggle.com](https://www.kaggle.com/datasets/utsavdey1410/food-nutrition-dataset/data)
 
 ## EDA: Correlation Analysis
 
@@ -119,12 +122,14 @@ Variables selected by Bayesian Lasso Model out of:
 
 **All Regressors**:
 
--   *Fat*, Saturated Fats, Monounsaturated Fats, Polyunsaturated Fats, Carbohydrates, Protein, *Water*, Vitamin A, Magnesium, Phosphorus
+-   *Fat*, Saturated Fats, Monounsaturated Fats, Polyunsaturated Fats,
+    Carbohydrates, Protein, *Water*, Vitamin A, Magnesium, Phosphorus
 
 **All Regressors without Fat**:
 
--   Saturated Fats, Monounsaturated Fats, Polyunsaturated Fats, Carbohydrates, Protein, *Cholesterol*, Vitamin A, *Vitamin E*, Magnesium, Phosphorus
-
+-   Saturated Fats, Monounsaturated Fats, Polyunsaturated Fats,
+    Carbohydrates, Protein, *Cholesterol*, Vitamin A, *Vitamin E*,
+    Magnesium, Phosphorus
 
 ```{r lasso, message=FALSE, echo=FALSE, include=FALSE, resilts="hide"}
 y <- df$Caloric_Value
@@ -200,20 +205,47 @@ selected_nutrients_without_fat
 
 ## Spike-and-Slab Prior: Theory
 
-\qquad $$\gamma_i \sim Bernoulli(\theta),$$
-<!-- \qquad $$\beta_i\, |\, Z_i = 0 \sim \delta(\beta_i),$$ -->
-<!-- \qquad $$\beta_i\, | \,Z_i = 1 \sim \mathcal{N}(0,\, \tau^{-1}),$$ -->
-\qquad $$\beta_i\, |\, \gamma_i \sim (1 - \gamma_i)\, \mathcal{N}(0,\, \tau_o^{-1}) + \gamma_i\, \mathcal{N}(0,\, \tau_1^{-1}),$$
-\qquad $$\text{ where } \tau_1 >> \tau_2 > 0,$$
-\qquad $$\sigma^2 \sim \operatorname{Inv-Gamma}\Big(\dfrac{a_0}{2}, \dfrac{b_0}{2}\Big)$$
-\qquad $$Y\, |\, \gamma,\, β,\, x ∼ \mathcal{N} \big( \langle \gamma \odot β, \,x\rangle, \,\sigma^2\big)$$
+<!-- \qquad $$\gamma_i \sim Bernoulli(\theta),$$ -->
 
+<!-- <!-- \qquad $$\beta_i\, |\, Z_i = 0 \sim \delta(\beta_i),$$ -->
+
+<!-- <!-- \qquad $$\beta_i\, | \,Z_i = 1 \sim \mathcal{N}(0,\, \tau^{-1}),$$ -->
+<!-- \qquad $$\beta_i\, |\, \gamma_i \sim (1 - \gamma_i)\, \mathcal{N}(0,\, \tau_o^{-1}) + \gamma_i\, \mathcal{N}(0,\, \tau_1^{-1}),$$ -->
+<!-- \qquad $$\text{ where } \tau_1 >> \tau_2 > 0,$$ -->
+<!-- \qquad $$\sigma^2 \sim \operatorname{Inv-Gamma}\Big(\dfrac{a_0}{2}, \dfrac{b_0}{2}\Big)$$ -->
+<!-- \qquad $$Y\, |\, \gamma,\, β,\, x ∼ \mathcal{N} \big( \langle \gamma \odot β, \,x\rangle, \,\sigma^2\big)$$ -->
+
+<!-- Linear regression: $y = X\beta + \varepsilon, \quad \varepsilon \sim N(0,\sigma^2 I)$ -->
+
+<!-- Likelihood: $p(y \mid \beta,\sigma^2) \propto \exp\left(-\frac{1}{2\sigma^2}\|y - X\beta\|^2\right)$ -->
+
+For each coefficient $\beta_j$, introduce an \textbf{inclusion indicator}
+$\gamma_j \in \{0,1\}$: $$
+    \gamma_j \sim \mathrm{Bernoulli}(\pi)
+  $$ $$
+    \beta_j \mid \gamma_j \sim 
+    (1-\gamma_j)\,\delta_0 
+    \;+\; 
+    \gamma_j\,N(0,\tau^2)
+  $$ \textbf{Spike} $(\delta_0)$: strong prior mass at $0$ $\Rightarrow$
+variable excluded
+
+\textbf{Slab} $(N(0,\tau^2))$: diffuse prior
+$\Rightarrow$ variable can be nonzero
+
+\textbf{Joint posterior}: $p(\beta,\gamma \mid y,X) \propto p(y \mid \beta)\,p(\beta \mid \gamma)\,p(\gamma)$ 
+
+\textbf{Posterior inclusion probability (PIP)} for variable $j$: $\mathrm{PIP}_j = P(\gamma_j = 1 \mid y,X) = \sum_{\gamma_{-j}} \int p(\beta,\gamma \mid y,X)\, d\beta$ 
+
+\textbf{Selection rule (threshold = 0.5)}: select variable $j$ if $\mathrm{PIP}_j > 0.5$. 
 
 ## Spike-and-Slab Prior: Results
 
 Variables selected by Spike-and-Slab Prior method:
 
--   Magnesium, Vitamin A, Protein, Carbohydrates, Polyunsaturated Fats, Monounsaturated Fats, Saturated Fats, *Fat*, Phosphorus, *Water*, *Vitamin B6*, *Manganese*, *Calcium*
+-   Magnesium, Vitamin A, Protein, Carbohydrates, Polyunsaturated Fats,
+    Monounsaturated Fats, Saturated Fats, *Fat*, Phosphorus, *Water*,
+    *Vitamin B6*, *Manganese*, *Calcium*
 
 ```{r spikeandslab, include=FALSE, results='hide', message=FALSE, echo=FALSE}
 set.seed(123)
@@ -255,7 +287,8 @@ $$\beta\, | \,\sigma^2 ∼ \mathcal{N}_p(\xi,\, \sigma^2\Omega),\quad \sigma^2 �
 
 $$\xi = 0, \quad \Omega = 10^3I_p,\quad \alpha = 0.01, \quad \beta = 0.01$$
 
-Choose regressors, for which 95\% credible interval of $\beta$ does not include $0$.
+Choose regressors, for which 95% credible interval of $\beta$ does not
+include $0$.
 
 ## Bayesian Linear Regression: Full Model
 
@@ -297,7 +330,7 @@ for (s in 1:samples_full) {
 
 # Credible intervals of betas
 beta_summary_full <- data.frame(
-  term = c("intercept", colnames(X[, -1])),
+  term = c(colnames(X_scaled)),
   mean = colMeans(beta_samples_full),
   low = apply(beta_samples_full, 2, quantile, 0.025),
   high = apply(beta_samples_full, 2, quantile, 0.975)
@@ -313,7 +346,6 @@ knitr::kable(selected_betas_full %>%
                arrange(desc(mean)),
              col.names = c("Regressor", "Mean β", "2.5% quantile", "97.5% quantile"))
 ```
-
 
 ## Bayesian Linear Regression: Lasso with Fat
 
@@ -521,8 +553,6 @@ knitr::kable(selected_betas_SS %>%
                arrange(desc(mean)),
              col.names = c("Regressor", "Mean β", "2.5% quantile", "97.5% quantile"))
 ```
-
-
 
 <!-- Model Comparison -->
 
@@ -765,10 +795,15 @@ knitr::kable(r2_table %>%
              col.names = c("Model", "R²", "MSE", "N Regressors"))
 ```
 
-Train-test split: 80\% - 20\%
+Train-test split: 80% - 20%
 
 ## Conclusions
 
 -   No idea
 
 # Thank you!
+
+
+
+
+
