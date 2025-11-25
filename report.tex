@@ -1,0 +1,125 @@
+\documentclass{article}\usepackage[]{graphicx}\usepackage[]{xcolor}
+% maxwidth is the original width if it is less than linewidth
+% otherwise use linewidth (to make sure the graphics do not exceed the margin)
+\makeatletter
+\def\maxwidth{ %
+  \ifdim\Gin@nat@width>\linewidth
+    \linewidth
+  \else
+    \Gin@nat@width
+  \fi
+}
+\makeatother
+
+\definecolor{fgcolor}{rgb}{0.345, 0.345, 0.345}
+\newcommand{\hlnum}[1]{\textcolor[rgb]{0.686,0.059,0.569}{#1}}%
+\newcommand{\hlsng}[1]{\textcolor[rgb]{0.192,0.494,0.8}{#1}}%
+\newcommand{\hlcom}[1]{\textcolor[rgb]{0.678,0.584,0.686}{\textit{#1}}}%
+\newcommand{\hlopt}[1]{\textcolor[rgb]{0,0,0}{#1}}%
+\newcommand{\hldef}[1]{\textcolor[rgb]{0.345,0.345,0.345}{#1}}%
+\newcommand{\hlkwa}[1]{\textcolor[rgb]{0.161,0.373,0.58}{\textbf{#1}}}%
+\newcommand{\hlkwb}[1]{\textcolor[rgb]{0.69,0.353,0.396}{#1}}%
+\newcommand{\hlkwc}[1]{\textcolor[rgb]{0.333,0.667,0.333}{#1}}%
+\newcommand{\hlkwd}[1]{\textcolor[rgb]{0.737,0.353,0.396}{\textbf{#1}}}%
+\let\hlipl\hlkwb
+
+\usepackage{framed}
+\makeatletter
+\newenvironment{kframe}{%
+ \def\at@end@of@kframe{}%
+ \ifinner\ifhmode%
+  \def\at@end@of@kframe{\end{minipage}}%
+  \begin{minipage}{\columnwidth}%
+ \fi\fi%
+ \def\FrameCommand##1{\hskip\@totalleftmargin \hskip-\fboxsep
+ \colorbox{shadecolor}{##1}\hskip-\fboxsep
+     % There is no \\@totalrightmargin, so:
+     \hskip-\linewidth \hskip-\@totalleftmargin \hskip\columnwidth}%
+ \MakeFramed {\advance\hsize-\width
+   \@totalleftmargin\z@ \linewidth\hsize
+   \@setminipage}}%
+ {\par\unskip\endMakeFramed%
+ \at@end@of@kframe}
+\makeatother
+
+\definecolor{shadecolor}{rgb}{.97, .97, .97}
+\definecolor{messagecolor}{rgb}{0, 0, 0}
+\definecolor{warningcolor}{rgb}{1, 0, 1}
+\definecolor{errorcolor}{rgb}{1, 0, 0}
+\newenvironment{knitrout}{}{} % an empty environment to be redefined in TeX
+
+\usepackage{alltt}
+
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{listings}
+\usepackage{float}
+\usepackage{amssymb}
+
+% \SweaveOpts{concordance=TRUE, echo=TRUE}
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\begin{document}
+
+\title{My Sweave Report}
+\author{Thy Luong, Evgeniia Selezneva, Jasmine Wang}
+\date{\today}
+\maketitle
+
+\section{Problem Statement}
+Everybody needs to eat food, but it is often complicated to understand what exactly we are putting into our bodies and stay informed about the quality of our diet. Our project aims to get a better understanding of food nutrition to help demystify this process. We wanted to explore how different types of nutrition affected caloric value. We found...
+% add the actual results from what we noticed
+
+\section{Introduction}
+Our plan to was to analyze the relationship between different types of nutrition and caloric value using data from a food nutrition dataset. We wanted to use Bayesian linear regression for Normal-Inverse-Gamma conjugate prior-posterior to see if any of the nutrition types are useful for predicting caloric value. Using Bayesian variable selection methods such as Bayesian lasso and spike-and-slab regression, we came up with several models to analyze the relationship between nutrition types and calories. We then compared how well these models predicted our test data.
+
+\section{Data Collection}
+We used food nutrition data from Kaggle compiled from scrapping the internet. It contains nutritional data for a total of 2,395 various rows (food) and 35 columns (food, 32 different nutrients, caloric value, and nutrition density) meaning we worked with up to 32 predictors for caloric value. During exploratory data analysis, we decided to investigate nutrients that we believed were more relevant to caloric value based on prior common knowledge we had. These nutrients were fat (all types), carbohydrates, and protein. We also looked at caloric value itself and in relation to these nutrients.
+
+% include eda plots
+
+
+\section{Data Analysis and Results}
+\subsection{Bayesian Linear Regression}
+For our regression model, we used $Y = X\beta + \epsilon$ where $Y \in \mathbb{R}$, $X$ is $n \times p$, $\beta \in \mathbb{R}^p$, and $\epsilon \sim N_n(0, \Sigma)$. In particular, $Y$ is our response variable (caloric value data), $X$ is the design matrix of independent observations of the predictors (nutrients data), $\beta$ are the regression coefficients which corresponds to our predictors, and $\epsilon$ is the random error. We will assume the errors are independent $n$ is the number of rows in our data (2,395) and $p$ is the number of predictors use (at most 32). \\
+
+\noindent
+We decided to use a multivariate normal distribution for the prior on $\beta$ and an inverse-gamma distribution 
+
+
+
+\subsection{Bayesian Variable Selection}
+Not all the predictors we have in our dataset are necessarily useful for predicting our response variable, caloric value. There are various Bayesian variable selection methods to help with this issue. For this analysis, we chose to use Bayesian lasso and spike-and-slab. \\
+
+\noindent
+Bayesian lasso is a method 
+
+
+
+\section{Summary and Discussion}
+
+\section{Appendix}
+
+\section{References}
+% dataset
+% @misc{utsav_dey_2024,
+% 	title={Food Nutrition Dataset},
+% 	url={https://www.kaggle.com/dsv/8820139},
+% 	DOI={10.34740/KAGGLE/DSV/8820139},
+% 	publisher={Kaggle},
+% 	author={Utsav Dey},
+% 	year={2024}
+% }
+% ai
+% papers
+% how do bibs work in r sweave (probably the same?)
+% how should we reference class material ? waiting for email from dr. li
+
+\section{Self-Reflection (Individual)}
+
+
+
+
+
+
+
+\end{document}
