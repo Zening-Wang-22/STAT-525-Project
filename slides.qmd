@@ -84,6 +84,22 @@ rownames(M) <- colnames(M)
 corrplot.mixed(M, diag="l", tl.pos = "lt", tl.col = "#000011", tl.srt = 45)
 ```
 
+## EDA: Fat Multicollinearity Check
+
+```{r fat plot, message=FALSE, echo=FALSE}
+FOOD_DATA %>%
+  mutate(
+    Sum_Fats = Saturated_Fats + Monounsaturated_Fats + Polyunsaturated_Fats
+  ) %>%
+  ggplot(aes(x = Sum_Fats, y = Fat)) +
+  geom_point(alpha = 0.7) +
+  geom_abline(intercept = 0, slope = 1, color = "blue", linetype = "dashed") +
+  labs(
+    x = "Saturated + Mono + Poly Fats",
+    y = "Total Fat",
+  ) + theme_minimal()
+```
+
 # Bayesian Analysis
 
 ## Bayesian Lasso Regression: Theory

@@ -5,6 +5,8 @@ library(monomvn)
 library(BoomSpikeSlab)
 library(car)
 library(MASS)
+library(ggplot2)
+
 # ===============================================
 #                 DATA PREPROCESS
 # ===============================================
@@ -39,6 +41,23 @@ X_scaled <- scale(X)
 plot(unlist(FOOD_DATA[, "Saturated_Fats"] + FOOD_DATA[, "Monounsaturated_Fats"] + FOOD_DATA[, "Polyunsaturated_Fats"]),
      unlist(FOOD_DATA[, "Fat"]))
 abline(0, 1)
+
+
+# ggplot version
+FOOD_DATA %>%
+  mutate(
+    Sum_Fats = Saturated_Fats + Monounsaturated_Fats + Polyunsaturated_Fats
+  ) %>%
+  ggplot(aes(x = Sum_Fats, y = Fat)) +
+  geom_point(alpha = 0.7) +
+  geom_abline(intercept = 0, slope = 1, color = "blue", linetype = "dashed") +
+  labs(
+    x = "Saturated + Mono + Poly Fats",
+    y = "Total Fat",
+    title = "Fat Multicollinearity Check"
+  ) +
+  theme_minimal()
+
 
 
 # ===============================================
@@ -599,7 +618,7 @@ bl_fit_tr <- blasso(
 )
 
 beta_ci_tr <- t(apply(bl_fit_tr$beta, 2, quantile, probs = c(0.025, 0.975)))
-colnames(beta_ci_tr) <- c("low", "high")
+colnames(beta_ci_tr) <- c("low", "high")  
 
 selected_lasso_ci_tr <- rownames(beta_ci_tr)[
   beta_ci_tr[, "low"] > 0 | beta_ci_tr[, "high"] < 0
