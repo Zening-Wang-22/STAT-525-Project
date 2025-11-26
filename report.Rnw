@@ -220,6 +220,7 @@ $$
 \tau_j \sim \text{Exp}(\lambda^2/2)
 $$
 
+\noindent
 From here, we sample from the distributions to do MCMC which gives us $\beta$ samples Then, similar to Bayesian linear regression, we use a 95\% credible interval to determine $\beta$ with a nonzero credible interval which we select as our predictors to use.
 
 \noindent
