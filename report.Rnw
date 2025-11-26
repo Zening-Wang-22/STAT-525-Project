@@ -9,6 +9,8 @@
 \usepackage{caption}
 \usepackage{subcaption}
 \usepackage[margin=1in]{geometry}
+\usepackage{longtable}
+
 
 
 % \SweaveOpts{concordance=TRUE, echo=TRUE}
@@ -31,6 +33,7 @@ library(car)
 library(MASS)
 library(ggplot2)
 library(corrplot)
+library(knitr)
 
 FOOD_DATA_GROUP1 <- read_csv("FINAL FOOD DATASET/FOOD-DATA-GROUP1.csv")
 FOOD_DATA_GROUP2 <- read_csv("FINAL FOOD DATASET/FOOD-DATA-GROUP2.csv")
@@ -62,8 +65,7 @@ X_scaled <- scale(X)
 
 
 \section{Problem Statement}
-Everybody needs to eat food, but it is often complicated to understand what exactly we are putting into our bodies and stay informed about the quality of our diet. Our project aims to get a better understanding of food nutrition to help demystify this process. We wanted to explore how different types of nutrition affected caloric value. We found...
-% add the actual results from what we noticed
+Everybody needs to eat food, but it is often complicated to understand what exactly we are putting into our bodies and stay informed about the quality of our diet. Our project aims to get a better understanding of food nutrition to help demystify this process. We wanted to explore how different types of nutrition affected caloric value. We found protein, carbohydrates, fats, and vitamin A to be the nutrients that show up consistently as predictors of caloric value idnciating a potential relationship there.
 
 \section{Introduction}
 Our plan was to analyze the relationship between different types of nutrition and caloric value using data from a food nutrition dataset. We wanted to use Bayesian linear regression for Normal-Inverse-Gamma conjugate prior-posterior to see if any of the nutrition types are useful for predicting caloric value. Using Bayesian variable selection methods such as Bayesian lasso and spike-and-slab regression, we came up with several models to analyze the relationship between nutrition types and calories. We then compared how well these models predicted our test data.
@@ -116,6 +118,7 @@ ggplot(df_long, aes(x = value)) +
   )
 @
 
+\newpage
 <<regressor_corr_plot, echo=FALSE, fig.align="center", fig.cap="Correlation Plot of Some Regressors", fig.pos="!ht", warning=FALSE>>=
 M = cor(df[c("Caloric_Value", "Fat", "Saturated_Fats", "Monounsaturated_Fats",
              "Polyunsaturated_Fats", "Carbohydrates", "Sugars", "Protein")])
@@ -162,27 +165,1142 @@ ggplot(df_long, aes(x = regressor_value, y = Caloric_Value)) +
   theme_minimal()
 @
 
-
-\section{Data Analysis and Results}
-\subsection{Bayesian Linear Regression}
-For our regression model, we used $Y = X\beta + \epsilon$ where $Y \in \mathbb{R}$, $X$ is $n \times p$, $\beta \in \mathbb{R}^p$, and $\epsilon \sim N_n(0, \Sigma)$. In particular, $Y$ is our response variable (caloric value data), $X$ is the design matrix of independent observations of the predictors (nutrients data), $\beta$ are the regression coefficients which corresponds to our predictors, and $\epsilon$ is the random error. We will assume the errors are independent $n$ is the number of rows in our data (2,395) and $p$ is the number of predictors use (at most 32). \\
+\newpage
+<<fat_multicollinearity_plot, echo=FALSE, fig.align="center", fig.cap="Fat Multicollinearity Plot", fig.pos="!ht", warning=FALSE>>=
+FOOD_DATA %>%
+  mutate(
+    Sum_Fats = Saturated_Fats + Monounsaturated_Fats + Polyunsaturated_Fats
+  ) %>%
+  ggplot(aes(x = Sum_Fats, y = Fat)) +
+  geom_point(alpha = 0.7) +
+  geom_abline(intercept = 0, slope = 1, color = "blue", linetype = "dashed") +
+  labs(
+    x = "Saturated + Mono + Poly Fats",
+    y = "Total Fat",
+  ) + theme_minimal()
+@
 
 \noindent
-We decided to use a multivariate normal distribution for the prior on $\beta$ and an inverse-gamma distribution on $\sigma_2$.
+From exploratory data analysis, we noticed that everything has a heavy right skew. This makes sense because not a lot of foods have very high amounts of calories and nutrients, but there will be a few that have a lot, relatively. The correlation plot and the caloric value vs regressors plot also indicate there a few regressors that seem to be related to caloric value which also lines up with what our prior knowledge was. This all seems to indicate Bayesian linear regression would be worth exploring. \\
+
+\noindent
+Based on knowledge about the data, we know that saturated fats, monounstaurated fats, and polyunsaturated fats are all types of fat which means it is likely multicollinear with the fat predictor. Our plots indicate that is likely the case, so that may be an impacting factor. So, later when we do variable selection we try starting it with the all the regressors, all the regressors except fat, and all the regressors except fat types to see if eliminating the multicollinearity beforehand is helpful for analysis. Something else interesting is that trans fat is not a predictor in this dataset even though the other fat types are.
+
+\section{Theoretical Background}
+\subsection{Bayesian Linear Regression}
+For our regression model, we used $Y = X\beta + \epsilon$ where $Y \in \mathbb{R}$, $X$ is $n \times p$, $\beta \in \mathbb{R}^p$, and $\epsilon \sim N_n(0, \sigma^2I)$. In particular, $Y$ is our response variable (caloric value data), $X$ is the design matrix of independent observations of the predictors (nutrients data), $\beta$ are the regression coefficients which corresponds to our predictors, and $\epsilon$ is the random error. We will assume the errors are independent $n$ is the number of rows in our data (2,395) and $p$ is the number of predictors use (at most 32). \\
+
+\noindent
+We decided to use a multivariate normal distribution for the prior of $\beta$ and an inverse-gamma distribution of $\sigma^2$.
+$$\beta | \sigma^2 \sim \mathcal{N}_p(\xi,\, \sigma^2\Omega),\quad \sigma^2 \sim \text{Inverse-Gamma}(a, b)$$
+We start with a non-informative prior of $\xi = 0, \Omega = 10^3I_p, a = 0.01, b = 0.01$. \\
+
+\noindent
+This results in the following conjugate posterior distributions for $\beta$ and $\sigma^2$.
+$$\beta | Y, X, \sigma^2 \sim \mathcal{N}_p((X'\Sigma^{-1} X+\Omega^{-1})^{-1}(X'\Sigma^{-1} Y+\Omega^{-1}\xi), (X'\Sigma^{-1} X+\Omega^{-1})^{-1})$$
+where $\Sigma = \sigma^2I$,
+$$\sigma^2 | Y, X \sim \text{Inverse-Gamma}(a + \frac{n}{2}, b + \frac{1}{2}(Y - X\xi)'(I + XVX')^{-1}(Y - X\xi))$$
+where $\Omega = \sigma^2V$. \\
+
+\noindent
+Then, we sample from these posterior distributions to get samples of $\beta$ and $\sigma^2$. Based on these samples, we can create a 95\% credible interval of which we choose $\beta$ to be in the model if its credible interval does not contain zero.
 
 \subsection{Bayesian Variable Selection}
 Not all the predictors we have in our dataset are necessarily useful for predicting our response variable, caloric value. There are various Bayesian variable selection methods to help with this issue. For this analysis, we chose to use Bayesian lasso and spike-and-slab. \\
 
 \noindent
-Bayesian lasso is a regularization method used in regression to decrease variance at the cost of increasing bias. Instead of using an estimation of ordinary least squares, it uses $L_1$-constrained least squares by adding an $L_1$ penalty. As opposed to some other regularization methods, Bayesian lasso can reduce irrelevant coefficients to zero by penalty.
+The classical frequentist Lasso is a regularization method used in regression to decrease variance at the cost of increasing bias. Instead of using an estimation of ordinary least squares, it uses $L_1$-constrained least squares by adding an $L_1$ penalty. As opposed to some other regularization methods, Bayesian lasso can reduce irrelevant coefficients to zero by penalty.
 $$\min_{\beta} \Big( \dfrac{1}{n} || Y - X \beta ||^2_2 + \lambda ||\beta||_1\Big)$$
 
 \noindent
-Spike-and-slab regression uses a mixture prior that sorts coefficients into a "spike" distribution (mass around zero), or a wide, diffused "slab" distribution. This prior is conditional on $\gamma_i \sim Bernoulli$ which represents whether $\beta_i$ is included.
-$$\beta_i\, |\, \gamma_i \sim (1 - \gamma_i)\, \mathcal{N}(0,\, \tau_o^{-1}) + \gamma_i\, \mathcal{N}(0,\, \tau_1^{-1}),$$
-This results in a posterior that can give the probability of each $\beta_i$ given the data. From there we can use MCMC methods to get the posterior inclusion probability (PIP) of $\gamma_i$ to decide whether to include $\beta_i$ in the model. This PIP is representative of the proportion of samples in MCMC that resulted in a model with $\beta_i$. Our threshold for including $\beta_i$ was 0.5.
+The Bayesian Lasso reinterprets this as a regression model where there is a prior Laplace mixture which is made up of a Normal and Exponential distribution.
+$$
+\beta_j \mid \tau_j \sim N(0,\ \sigma^2 \tau_j),
+\qquad
+\tau_j \sim \text{Exp}(\lambda^2/2)
+$$
+
+From here, we sample from the distributions to do MCMC which gives us $\beta$ samples Then, similar to Bayesian linear regression, we use a 95\% credible interval to determine $\beta$ with a nonzero credible interval which we select as our predictors to use.
+
+\noindent
+Spike-and-slab regression uses a mixture prior that sorts coefficients into a "spike" distribution (mass around zero), or a wide, diffused "slab" distribution. This prior is conditional on $\gamma_j \sim Bernoulli(\pi)$, an inclusion indicator which represents whether $\beta_j$ is included in the model.
+$$\beta_j \mid \gamma_j \sim 
+    (1-\gamma_j)\,\delta_0 
+    \;+\; 
+    \gamma_j\,N(0,\tau^2)$$
+where the "spike" is $(\delta_0)$, a strong prior mass around zero and the "slab" is $(N(0,\tau^2))$, a diffused prior.
+This results in a posterior that can give the probability of each $\beta_j$ given the data. From there we can use MCMC methods to get the posterior inclusion probability (PIP) of $\gamma_j$ to decide whether to include $\beta_j$ in the model. This PIP is representative of the proportion of samples in MCMC that resulted in a model with $\beta_j$. Our threshold for including $\beta_j$ is $\mathrm{PIP}_j > 0.5$.
+
+\section{Data Analysis and Results}
+We did Bayesian linear regression on the full model, Bayesian Lasso model, Bayesian Lasso model without fat, Bayesian Lasso model without fat types, Spike-and-Slab model, Spike-and-Slab model without fat, Spike-and-Slab mode without fat types.
+
+% variable selection code
+<<all_lasso_spike_and_slab, message=FALSE, echo=FALSE, include=FALSE, resilts="hide">>=
+# Bayesian Lasso
+set.seed(123)
+bl_fit <- blasso(
+  X = X_scaled,
+  y = y,
+  T = 10000,
+  thin = 5,
+  verb = 0
+)
+
+# Posterior mean of each coefficient
+beta_mean <- apply(bl_fit$beta, 2, mean)
+names(beta_mean) <- colnames(X_scaled)
+
+# Rank nutrients by absolute effect size
+ranked_lasso <- sort(abs(beta_mean), decreasing = TRUE)
+head(ranked_lasso, 20)
+
+beta_ci <- t(apply(bl_fit$beta, 2, quantile, probs = c(0.025, 0.975)))
+colnames(beta_ci) <- c("low", "high")
+
+# Selected nutrients from Bayesian Lasso
+selected_lasso_ci <- rownames(beta_ci)[beta_ci[, "low"] > 0 | beta_ci[, "high"] < 0]
+selected_lasso_ci # The Bayesian lasso thinks those predictors have credible, non-zero effects on "Caloric Value".
+
+idx_sel <- as.integer(sub("b\\.", "", selected_lasso_ci))
+idx_sel 
+
+selected_nutrients <- colnames(X_scaled)[idx_sel]
+selected_nutrients
+
+# Bayesian Lasso without fat
+X_without_fat <- X %>% dplyr::select(-Fat)
+
+X_scaled_without_fat <- scale(X_without_fat)
+
+# Bayesian Lasso without fat
+set.seed(123)
+bl_fit_without_fat <- blasso(
+  X = X_scaled_without_fat,
+  y = y,
+  T = 10000,
+  thin = 5,
+  verb = 0
+)
+
+# Posterior mean of each coefficient
+beta_mean_without_fat <- apply(bl_fit_without_fat$beta, 2, mean)
+names(beta_mean_without_fat) <- colnames(X_scaled_without_fat)
+
+# Rank nutrients by absolute effect size
+ranked_lasso_without_fat <- sort(abs(beta_mean_without_fat), decreasing = TRUE)
+head(ranked_lasso_without_fat, 20)
+
+beta_ci_without_fat <- t(apply(bl_fit_without_fat$beta, 2, quantile, probs = c(0.025, 0.975)))
+colnames(beta_ci_without_fat) <- c("low", "high")
+
+# Selected nutrients from Bayesian Lasso
+selected_lasso_ci_without_fat <- rownames(beta_ci_without_fat)[beta_ci_without_fat[, "low"] > 0 | beta_ci_without_fat[, "high"] < 0]
+selected_lasso_ci_without_fat # The Bayesian lasso thinks those predictors have credible, non-zero effects on "Caloric Value".
+
+idx_sel_without_fat <- as.integer(sub("b\\.", "", selected_lasso_ci_without_fat))
+idx_sel_without_fat 
+
+selected_nutrients_without_fat <- colnames(X_scaled_without_fat)[idx_sel_without_fat]
+selected_nutrients_without_fat
+
+# Bayesian Lasso without fat types
+X_without_fat_types <- X %>% dplyr::select(-c(Saturated_Fats, Monounsaturated_Fats, Polyunsaturated_Fats))
+X_scaled_without_fat_types <- scale(X_without_fat_types)
+
+set.seed(123)
+bl_fit_without_fat_types <- blasso(
+  X = X_scaled_without_fat_types,
+  y = y,
+  T = 10000,
+  thin = 5,
+  verb = 0
+)
+
+# Posterior mean of each coefficient
+beta_mean_without_fat_types <- apply(bl_fit_without_fat_types$beta, 2, mean)
+names(beta_mean_without_fat_types) <- colnames(X_scaled_without_fat_types)
+
+# Rank nutrients by absolute effect size
+ranked_lasso_without_fat_types <- sort(abs(beta_mean_without_fat_types), decreasing = TRUE)
+head(ranked_lasso_without_fat_types, 20)
+
+# 95% credible intervals
+beta_ci_without_fat_types <- t(apply(
+  bl_fit_without_fat_types$beta,
+  2,
+  quantile,
+  probs = c(0.025, 0.975)
+))
+colnames(beta_ci_without_fat_types) <- c("low", "high")
+
+# Selected nutrients (credible interval excludes zero)
+selected_lasso_ci_without_fat_types <- rownames(beta_ci_without_fat_types)[
+  beta_ci_without_fat_types[, "low"] > 0 |
+    beta_ci_without_fat_types[, "high"] < 0
+]
+
+selected_lasso_ci_without_fat_types   # Variables with credible non-zero effects
+
+# Extract original nutrient names
+idx_sel_without_fat_types <- as.integer(sub("b\\.", "", selected_lasso_ci_without_fat_types))
+idx_sel_without_fat_types
+
+selected_nutrients_without_fat_types <- colnames(X_scaled_without_fat_types)[idx_sel_without_fat_types]
+selected_nutrients_without_fat_types
+
+# Spike and Slab
+set.seed(123)
+df_model <- data.frame(
+  y = as.numeric(y),
+  as.data.frame(X_scaled)
+)
+
+ss_fit <- lm.spike(
+  y ~ .,
+  data  = df_model,
+  niter = 6000,                 
+  expected.model.size = 10    # prior belief of how many predictors matter
+)
+
+burn_in <- 1000
+
+ss_sum <- summary(ss_fit, burn = burn_in)
+
+# matrix with columns:
+# 1 post mean, 2 post sd,
+# 3 mean|nonzero, 4 sd|nonzero,
+# 5 Pr(nonzero)
+coef_table <- ss_sum$coefficients
+
+inc_prob <- coef_table[, 5]
+inc_prob <- inc_prob[names(inc_prob) != "(Intercept)"]
+
+inc_prob_sorted <- sort(inc_prob, decreasing = TRUE)
+selected_vars <- names(inc_prob)[inc_prob > 0.5] # keep any nutrient whose coefficient is nonzero in more than half the posterior samples.
+selected_vars
+
+# Spike and Slab without fat
+X_without_fat <- X %>% dplyr::select(-Fat)
+X_scaled_without_fat <- scale(X_without_fat)
+set.seed(123)
+df_model_nofat <- data.frame(
+  y = as.numeric(y),
+  as.data.frame(X_scaled_without_fat)
+)
+
+# Fit spike-and-slab regression
+ss_fit_nofat <- lm.spike(
+  y ~ .,
+  data  = df_model_nofat,
+  niter = 6000,
+  expected.model.size = 10
+)
+
+burn_in <- 1000
+
+ss_sum_nofat <- summary(ss_fit_nofat, burn = burn_in)
+
+coef_table_nofat <- ss_sum_nofat$coefficients
+
+inc_prob_nofat <- coef_table_nofat[, 5]
+inc_prob_nofat <- inc_prob_nofat[names(inc_prob_nofat) != "(Intercept)"]
+
+inc_prob_nofat_sorted <- sort(inc_prob_nofat, decreasing = TRUE)
+
+selected_vars_nofat <- names(inc_prob_nofat)[inc_prob_nofat > 0.5]
+
+inc_prob_nofat_sorted
+selected_vars_nofat
+
+# Spike and Slab without fat types
+X_without_fat_types <- X %>% dplyr::select(-c(Saturated_Fats, Monounsaturated_Fats, Polyunsaturated_Fats))
+X_scaled_without_fat_types <- scale(X_without_fat_types)
+set.seed(123)
+df_model_nofat_types <- data.frame(
+  y = as.numeric(y),
+  as.data.frame(X_scaled_without_fat_types)
+)
+
+# Fit spike-and-slab regression
+ss_fit_nofat_types <- lm.spike(
+  y ~ .,
+  data  = df_model_nofat_types,
+  niter = 6000,
+  expected.model.size = 10
+)
+
+burn_in <- 1000
+
+ss_sum_nofat_types <- summary(ss_fit_nofat_types, burn = burn_in)
+
+coef_table_nofat_types <- ss_sum_nofat_types$coefficients
+
+inc_prob_nofat_types <- coef_table_nofat_types[, 5]
+inc_prob_nofat_types <- inc_prob_nofat_types[names(inc_prob_nofat_types) != "(Intercept)"]
+
+inc_prob_nofat_types_sorted <- sort(inc_prob_nofat_types, decreasing = TRUE)
+
+selected_vars_nofat_types <- names(inc_prob_nofat_types)[inc_prob_nofat_types > 0.5]
+
+inc_prob_nofat_types_sorted
+selected_vars_nofat_types
+@
+
+% model tables
+\newpage
+<<reg_ful, echo=FALSE, results="asis">>=
+# Model 1: Full model with all variables as regressors
+n_full <- nrow(X_scaled)
+p_full <- ncol(X_scaled)
+
+xi_full <- rep(0, p_full)
+Omega_full <- 10^3 * diag(p_full)
+alpha_full <- 0.01
+b_full <- 0.01  # using b instead of beta for rate parameter
+
+Omega_inverse_full <- solve(Omega_full)
+Q_beta_full <- t(as.matrix(X_scaled)) %*% X_scaled + Omega_inverse_full
+Q_beta_inverse_full <- solve(Q_beta_full)
+l_beta_full <- t(as.matrix(X_scaled)) %*% y + Omega_inverse_full %*% xi_full
+
+# Sampling posterior
+samples_full <- 10^4
+sigma_2_samples_full <- rinvgamma(
+  samples_full,
+  alpha_full + n_full / 2,
+  b_full + t(y) %*% y / 2 +
+    t(xi_full) %*% Omega_inverse_full %*% xi_full / 2 -
+    t(l_beta_full) %*% Q_beta_inverse_full %*% l_beta_full / 2
+)
+
+beta_samples_full <- matrix(NA, nrow = samples_full, ncol = p_full)
+for (s in 1:samples_full) {
+  beta_samples_full[s, ] <- mvrnorm(
+    1,
+    Q_beta_inverse_full %*% l_beta_full,
+    Sigma = sigma_2_samples_full[s] * Q_beta_inverse_full
+  )
+}
+
+# Credible intervals of betas
+beta_summary_full <- data.frame(
+  term = c(colnames(X_scaled)),
+  mean = colMeans(beta_samples_full),
+  low = apply(beta_samples_full, 2, quantile, 0.025),
+  high = apply(beta_samples_full, 2, quantile, 0.975)
+)
+
+# beta_summary_full
+selected_betas_full <- beta_summary_full[
+  beta_summary_full[, "low"] > 0 | beta_summary_full[, "high"] < 0,]
+
+knitr::kable(selected_betas_full %>% 
+               mutate(term = gsub("_", " ", term)) %>% 
+               arrange(desc(mean)),
+             col.names = c("Regressor", "Mean $\\beta$", "2.5\\% quantile", "97.5\\% quantile"),
+             escape = FALSE,
+             caption = "Bayesian Linear Regression: Full Model",
+             longtable = T)
+@
+
+<<lm_lasso, echo=FALSE, results="asis">>=
+X_scaled_BL_F <- X_scaled[, selected_nutrients, drop = FALSE]
+
+n_BL_F <- nrow(X_scaled_BL_F)
+p_BL_F <- ncol(X_scaled_BL_F)
+
+# Prior settings
+xi_BL_F <- rep(0, p_BL_F)
+Omega_BL_F <- 10^3 * diag(p_BL_F)
+alpha_BL_F <- 0.01
+b_BL_F <- 0.01  # rate parameter
+
+Omega_inverse_BL_F <- solve(Omega_BL_F)
+
+Q_beta_BL_F <- t(as.matrix(X_scaled_BL_F)) %*% X_scaled_BL_F + Omega_inverse_BL_F
+Q_beta_inverse_BL_F <- solve(Q_beta_BL_F)
+
+l_beta_BL_F <- t(as.matrix(X_scaled_BL_F)) %*% y + Omega_inverse_BL_F %*% xi_BL_F
+
+# Posterior sampling
+samples_BL_F <- 10^4
+
+sigma_2_samples_BL_F <- rinvgamma(
+  samples_BL_F,
+  alpha_BL_F + n_BL_F / 2,
+  b_BL_F + t(y) %*% y / 2 +
+    t(xi_BL_F) %*% Omega_inverse_BL_F %*% xi_BL_F / 2 -
+    t(l_beta_BL_F) %*% Q_beta_inverse_BL_F %*% l_beta_BL_F / 2
+)
+
+beta_samples_BL_F <- matrix(NA, nrow = samples_BL_F, ncol = p_BL_F)
+
+for (s in 1:samples_BL_F) {
+  beta_samples_BL_F[s, ] <- mvrnorm(
+    1,
+    Q_beta_inverse_BL_F %*% l_beta_BL_F,
+    Sigma = sigma_2_samples_BL_F[s] * Q_beta_inverse_BL_F
+  )
+}
+
+# hist(sigma_2_samples_BL_F, xlab = expression(sigma^2))
+
+# Credible intervals
+beta_summary_BL_F <- data.frame(
+  term = c(colnames(X_scaled_BL_F)),
+  mean = colMeans(beta_samples_BL_F),
+  low = apply(beta_samples_BL_F, 2, quantile, 0.025),
+  high = apply(beta_samples_BL_F, 2, quantile, 0.975)
+)
+
+
+# beta_summary_BL_F
+
+selected_betas_BL_F <- beta_summary_BL_F[
+  beta_summary_BL_F[, "low"] > 0 | beta_summary_BL_F[, "high"] < 0,]
+
+
+knitr::kable(selected_betas_BL_F %>%
+               mutate(term = gsub("_", " ", term)) %>%
+               arrange(desc(mean)),
+             col.names = c("Regressor", "Mean $\\beta$", "2.5\\% quantile", "97.5\\% quantile"),
+             escape = FALSE,
+             caption = "Bayesian Linear Regression: Bayesian Lasso",
+             longtable = T)
+@
+
+<<lm_lasso_without_fat, echo=FALSE, results="asis">>=
+X_scaled_BL <- X_scaled[, selected_nutrients_without_fat, drop = FALSE]
+
+n_BL <- nrow(X_scaled_BL)
+p_BL <- ncol(X_scaled_BL)
+
+xi_BL <- rep(0, p_BL)
+Omega_BL <- 10^3 * diag(p_BL)
+alpha_BL <- 0.01
+b_BL <- 0.01  # rate parameter
+
+Omega_inverse_BL <- solve(Omega_BL)
+
+Q_beta_BL <- t(as.matrix(X_scaled_BL)) %*% X_scaled_BL + Omega_inverse_BL
+Q_beta_inverse_BL <- solve(Q_beta_BL)
+
+l_beta_BL <- t(as.matrix(X_scaled_BL)) %*% y + Omega_inverse_BL %*% xi_BL
+
+# Posterior sampling
+samples_BL <- 10^4
+
+sigma_2_samples_BL <- rinvgamma(
+  samples_BL,
+  alpha_BL + n_BL / 2,
+  b_BL + t(y) %*% y / 2 +
+    t(xi_BL) %*% Omega_inverse_BL %*% xi_BL / 2 -
+    t(l_beta_BL) %*% Q_beta_inverse_BL %*% l_beta_BL / 2
+)
+
+beta_samples_BL <- matrix(NA, nrow = samples_BL, ncol = p_BL)
+
+for (s in 1:samples_BL) {
+  beta_samples_BL[s, ] <- mvrnorm(
+    1,
+    Q_beta_inverse_BL %*% l_beta_BL,
+    Sigma = sigma_2_samples_BL[s] * Q_beta_inverse_BL
+  )
+}
+
+
+# Credible intervals
+beta_summary_BL <- data.frame(
+  term = c(colnames(X_scaled_BL)),
+  mean = colMeans(beta_samples_BL),
+  low = apply(beta_samples_BL, 2, quantile, 0.025),
+  high = apply(beta_samples_BL, 2, quantile, 0.975)
+)
+
+# Select coefficients with credible intervals not covering 0
+selected_betas_BL <- beta_summary_BL[
+  beta_summary_BL[,"low"] > 0 | beta_summary_BL[, "high"] < 0,
+]
+
+knitr::kable(selected_betas_BL %>%
+               mutate(term = gsub("_", " ", term)) %>%
+               arrange(desc(mean)),
+             col.names = c("Regressor", "Mean $\\beta$", "2.5\\% quantile", "97.5\\% quantile"),
+             escape = FALSE,
+             caption = "Bayesian Linear Regression: Bayesian Lasso without Fat",
+             longtable = T)
+@
+
+<<lm_lasso_without_fat_types, echo=FALSE, results="asis">>=
+X_scaled_BL_nofat_types <- X_scaled[, selected_nutrients_without_fat_types, drop = FALSE]
+
+n_BL_nofat_types <- nrow(X_scaled_BL_nofat_types)
+p_BL_nofat_types <- ncol(X_scaled_BL_nofat_types)
+
+xi_BL_nofat_types <- rep(0, p_BL_nofat_types)
+Omega_BL_nofat_types <- 10^3 * diag(p_BL_nofat_types)
+alpha_BL_nofat_types <- 0.01
+b_BL_nofat_types <- 0.01  # rate parameter
+
+Omega_inverse_BL_nofat_types <- solve(Omega_BL_nofat_types)
+
+Q_beta_BL_nofat_types <- t(as.matrix(X_scaled_BL_nofat_types)) %*% X_scaled_BL_nofat_types +
+  Omega_inverse_BL_nofat_types
+Q_beta_inverse_BL_nofat_types <- solve(Q_beta_BL_nofat_types)
+
+l_beta_BL_nofat_types <- t(as.matrix(X_scaled_BL_nofat_types)) %*% y +
+  Omega_inverse_BL_nofat_types %*% xi_BL_nofat_types
+
+# Posterior sampling
+samples_BL_nofat_types <- 10^4
+
+sigma_2_samples_BL_nofat_types <- rinvgamma(
+  samples_BL_nofat_types,
+  alpha_BL_nofat_types + n_BL_nofat_types / 2,
+  b_BL_nofat_types + t(y) %*% y / 2 +
+    t(xi_BL_nofat_types) %*% Omega_inverse_BL_nofat_types %*% xi_BL_nofat_types / 2 -
+    t(l_beta_BL_nofat_types) %*% Q_beta_inverse_BL_nofat_types %*% l_beta_BL_nofat_types / 2
+)
+
+beta_samples_BL_nofat_types <- matrix(NA,
+                                      nrow = samples_BL_nofat_types,
+                                      ncol = p_BL_nofat_types
+)
+
+for (s in 1:samples_BL_nofat_types) {
+  beta_samples_BL_nofat_types[s, ] <- mvrnorm(
+    1,
+    Q_beta_inverse_BL_nofat_types %*% l_beta_BL_nofat_types,
+    Sigma = sigma_2_samples_BL_nofat_types[s] * Q_beta_inverse_BL_nofat_types
+  )
+}
+
+# Credible intervals
+beta_summary_BL_nofat_types <- data.frame(
+  term = colnames(X_scaled_BL_nofat_types),
+  mean = colMeans(beta_samples_BL_nofat_types),
+  low = apply(beta_samples_BL_nofat_types, 2, quantile, 0.025),
+  high = apply(beta_samples_BL_nofat_types, 2, quantile, 0.975)
+)
+
+# Select coefficients with credible intervals not covering 0
+selected_betas_BL_nofat_types <- beta_summary_BL_nofat_types[
+  beta_summary_BL_nofat_types[,"low"] > 0 |
+    beta_summary_BL_nofat_types[, "high"] < 0,
+]
+
+knitr::kable(selected_betas_BL_nofat_types %>%
+               mutate(term = gsub("_", " ", term)) %>%
+               arrange(desc(mean)),
+             col.names = c("Regressor", "Mean $\\beta$", "2.5\\% quantile", "97.5\\% quantile"),
+             escape = FALSE,
+             caption = "Bayesian Linear Regression: Bayesian Lasso without Fat Types",
+             longtable = T)
+@
+
+\newpage
+<<lm_spike_and_slab, echo=FALSE, results="asis">>=
+X_scaled_SS <- X_scaled[, selected_vars, drop = FALSE]
+# If spike & slab chose nothing, stop early
+if (length(selected_vars) == 0) {
+  stop("Spike&Slab selected no variables (inc_prob > 0.5). Try lowering threshold.")
+}
+
+n_SS <- nrow(X_scaled_SS)
+p_SS <- ncol(X_scaled_SS)
+
+# Prior hyperparameters (same weakly-informative N-Inv-Gamma setup)
+xi_SS <- rep(0, p_SS)
+Omega_SS <- 10^3 * diag(p_SS)
+alpha_SS <- 0.01
+b_SS <- 0.01
+
+Omega_inverse_SS <- solve(Omega_SS)
+
+# Posterior precision and mean terms
+Q_beta_SS <- t(as.matrix(X_scaled_SS)) %*% X_scaled_SS + Omega_inverse_SS
+Q_beta_inverse_SS <- solve(Q_beta_SS)
+
+l_beta_SS <- t(as.matrix(X_scaled_SS)) %*% y + Omega_inverse_SS %*% xi_SS
+
+# Posterior sampling
+samples_SS <- 10^4
+
+sigma_2_samples_SS <- rinvgamma(
+  samples_SS,
+  alpha_SS + n_SS / 2,
+  b_SS + t(y) %*% y / 2 +
+    t(xi_SS) %*% Omega_inverse_SS %*% xi_SS / 2 -
+    t(l_beta_SS) %*% Q_beta_inverse_SS %*% l_beta_SS / 2
+)
+
+beta_samples_SS <- matrix(NA, nrow = samples_SS, ncol = p_SS)
+
+for (s in 1:samples_SS) {
+  beta_samples_SS[s, ] <- mvrnorm(
+    1,
+    Q_beta_inverse_SS %*% l_beta_SS,
+    Sigma = sigma_2_samples_SS[s] * Q_beta_inverse_SS
+  )
+}
+
+# Credible intervals for betas
+beta_summary_SS <- data.frame(
+  term = colnames(X_scaled_SS),
+  mean = colMeans(beta_samples_SS),
+  low = apply(beta_samples_SS, 2, quantile, 0.025),
+  high = apply(beta_samples_SS, 2, quantile, 0.975)
+)
+
+# Select coefficients whose 95% CI excludes 0
+selected_betas_SS <- beta_summary_SS[
+  beta_summary_SS[,"low"] > 0 | beta_summary_SS[, "high"] < 0,
+]
+
+knitr::kable(selected_betas_SS %>%
+               mutate(term = gsub("_", " ", term)) %>%
+               arrange(desc(mean)),
+             col.names = c("Regressor", "Mean $\\beta$", "2.5\\% quantile", "97.5\\% quantile"),
+             escape = FALSE,
+             caption = "Bayesian Linear Regression: Spike-and-Slab",
+             longtable = T)
+@
+
+<<lm_spike_and_slab_without_fat, echo=FALSE, results="asis">>=
+X_scaled_SS_nofat <- X_scaled[, selected_vars_nofat, drop = FALSE]
+
+# If spike & slab chose nothing, stop early
+if (length(selected_vars_nofat) == 0) {
+  stop("Spike&Slab (no fat) selected no variables (inc_prob > 0.5). Try lowering threshold.")
+}
+
+n_SS_nofat <- nrow(X_scaled_SS_nofat)
+p_SS_nofat <- ncol(X_scaled_SS_nofat)
+
+# Prior hyperparameters
+xi_SS_nofat <- rep(0, p_SS_nofat)
+Omega_SS_nofat <- 10^3 * diag(p_SS_nofat)
+alpha_SS_nofat <- 0.01
+b_SS_nofat <- 0.01
+
+Omega_inverse_SS_nofat <- solve(Omega_SS_nofat)
+
+# Posterior precision and mean
+Q_beta_SS_nofat <- t(as.matrix(X_scaled_SS_nofat)) %*% X_scaled_SS_nofat +
+  Omega_inverse_SS_nofat
+Q_beta_inverse_SS_nofat <- solve(Q_beta_SS_nofat)
+
+l_beta_SS_nofat <- t(as.matrix(X_scaled_SS_nofat)) %*% y +
+  Omega_inverse_SS_nofat %*% xi_SS_nofat
+
+# Posterior sampling
+samples_SS_nofat <- 10^4
+
+sigma_2_samples_SS_nofat <- rinvgamma(
+  samples_SS_nofat,
+  alpha_SS_nofat + n_SS_nofat / 2,
+  b_SS_nofat + t(y) %*% y / 2 +
+    t(xi_SS_nofat) %*% Omega_inverse_SS_nofat %*% xi_SS_nofat / 2 -
+    t(l_beta_SS_nofat) %*% Q_beta_inverse_SS_nofat %*% l_beta_SS_nofat / 2
+)
+
+beta_samples_SS_nofat <- matrix(NA,
+                                nrow = samples_SS_nofat,
+                                ncol = p_SS_nofat
+)
+
+for (s in 1:samples_SS_nofat) {
+  beta_samples_SS_nofat[s, ] <- mvrnorm(
+    1,
+    Q_beta_inverse_SS_nofat %*% l_beta_SS_nofat,
+    Sigma = sigma_2_samples_SS_nofat[s] * Q_beta_inverse_SS_nofat
+  )
+}
+
+
+# Credible intervals
+beta_summary_SS_nofat <- data.frame(
+  term = colnames(X_scaled_SS_nofat),
+  mean = colMeans(beta_samples_SS_nofat),
+  low = apply(beta_samples_SS_nofat, 2, quantile, 0.025),
+  high = apply(beta_samples_SS_nofat, 2, quantile, 0.975)
+)
+
+# Select coefficients with 95% CI excluding 0
+selected_betas_SS_nofat <- beta_summary_SS_nofat[
+  beta_summary_SS_nofat[, "low"] > 0 |
+    beta_summary_SS_nofat[, "high"] < 0,
+]
+
+knitr::kable(selected_betas_SS_nofat %>%
+               mutate(term = gsub("_", " ", term)) %>%
+               arrange(desc(mean)),
+             col.names = c("Regressor", "Mean $\\beta$", "2.5\\% quantile", "97.5\\% quantile"),
+             escape = FALSE,
+             caption = "Bayesian Linear Regression: Spike-and-Slab without Fat",
+             longtable = T)
+@
+
+<<lm_spike_and_slab_without_fat_types, echo=FALSE, results="asis">>=
+X_scaled_SS_nofat_types <- X_scaled[, selected_vars_nofat_types, drop = FALSE]
+
+# If spike & slab chose nothing, stop early
+if (length(selected_vars_nofat_types) == 0) {
+  stop("Spike&Slab (no fat types) selected no variables (inc_prob > 0.5). Try lowering threshold.")
+}
+
+n_SS_nofat_types <- nrow(X_scaled_SS_nofat_types)
+p_SS_nofat_types <- ncol(X_scaled_SS_nofat_types)
+
+# Prior hyperparameters
+xi_SS_nofat_types <- rep(0, p_SS_nofat_types)
+Omega_SS_nofat_types <- 10^3 * diag(p_SS_nofat_types)
+alpha_SS_nofat_types <- 0.01
+b_SS_nofat_types <- 0.01
+
+Omega_inverse_SS_nofat_types <- solve(Omega_SS_nofat_types)
+
+# Posterior precision and mean
+Q_beta_SS_nofat_types <- t(as.matrix(X_scaled_SS_nofat_types)) %*% X_scaled_SS_nofat_types +
+  Omega_inverse_SS_nofat_types
+Q_beta_inverse_SS_nofat_types <- solve(Q_beta_SS_nofat_types)
+
+l_beta_SS_nofat_types <- t(as.matrix(X_scaled_SS_nofat_types)) %*% y +
+  Omega_inverse_SS_nofat_types %*% xi_SS_nofat_types
+
+# Posterior sampling
+samples_SS_nofat_types <- 10^4
+
+sigma_2_samples_SS_nofat_types <- rinvgamma(
+  samples_SS_nofat_types,
+  alpha_SS_nofat_types + n_SS_nofat_types / 2,
+  b_SS_nofat_types + t(y) %*% y / 2 +
+    t(xi_SS_nofat_types) %*% Omega_inverse_SS_nofat_types %*% xi_SS_nofat_types / 2 -
+    t(l_beta_SS_nofat_types) %*% Q_beta_inverse_SS_nofat_types %*% l_beta_SS_nofat_types / 2
+)
+
+beta_samples_SS_nofat_types <- matrix(
+  NA,
+  nrow = samples_SS_nofat_types,
+  ncol = p_SS_nofat_types
+)
+
+for (s in 1:samples_SS_nofat_types) {
+  beta_samples_SS_nofat_types[s, ] <- mvrnorm(
+    1,
+    Q_beta_inverse_SS_nofat_types %*% l_beta_SS_nofat_types,
+    Sigma = sigma_2_samples_SS_nofat_types[s] * Q_beta_inverse_SS_nofat_types
+  )
+}
+
+
+# Credible intervals
+beta_summary_SS_nofat_types <- data.frame(
+  term = colnames(X_scaled_SS_nofat_types),
+  mean = colMeans(beta_samples_SS_nofat_types),
+  low = apply(beta_samples_SS_nofat_types, 2, quantile, 0.025),
+  high = apply(beta_samples_SS_nofat_types, 2, quantile, 0.975)
+)
+
+# Select coefficients with 95% CI excluding 0
+selected_betas_SS_nofat_types <- beta_summary_SS_nofat_types[
+  beta_summary_SS_nofat_types[, "low"] > 0 |
+    beta_summary_SS_nofat_types[, "high"] < 0,
+]
+
+knitr::kable(selected_betas_SS_nofat_types %>%
+               mutate(term = gsub("_", " ", term)) %>%
+               arrange(desc(mean)),
+             col.names = c("Regressor", "Mean $\\beta$", "2.5\\% quantile", "97.5\\% quantile"),
+             escape = FALSE,
+             caption = "Bayesian Linear Regression: Spike-and-Slab without Fat Types",
+             longtable = T)
+@
+
+<<all_model_train_test, message=FALSE, echo=FALSE, include=FALSE, results="hide">>=
+# train test split
+set.seed(123)
+
+n <- nrow(df)
+train_idx <- sample(seq_len(n), size = floor(0.8 * n))
+test_idx  <- setdiff(seq_len(n), train_idx)
+
+X_train <- X[train_idx, , drop = FALSE]
+X_test  <- X[test_idx,  , drop = FALSE]
+y_train <- y[train_idx]
+y_test  <- y[test_idx]
+
+# ---- scale using TRAIN stats only
+train_means <- apply(X_train, 2, mean)
+train_sds   <- apply(X_train, 2, sd)
+
+scale_with_train <- function(Xmat, mu, sdv) {
+  sweep(sweep(as.matrix(Xmat), 2, mu, "-"), 2, sdv, "/")
+}
+
+X_train_scaled <- scale_with_train(X_train, train_means, train_sds)
+X_test_scaled  <- scale_with_train(X_test,  train_means, train_sds)
+
+# help function
+fit_conjugate_blr <- function(Xtr_sc, ytr, Xte_sc, yte,
+                              samples = 1e4,
+                              alpha0 = 0.01, b0 = 0.01,
+                              Omega_scale = 1e3) {
+  
+  n_tr <- nrow(Xtr_sc)
+  p_tr <- ncol(Xtr_sc)
+  
+  xi <- rep(0, p_tr)
+  Omega <- Omega_scale * diag(p_tr)
+  Omega_inv <- solve(Omega)
+  
+  Q_beta <- t(Xtr_sc) %*% Xtr_sc + Omega_inv
+  Q_beta_inv <- solve(Q_beta)
+  l_beta <- t(Xtr_sc) %*% ytr + Omega_inv %*% xi
+  
+  # posterior draws
+  sigma2_draws <- rinvgamma(
+    samples,
+    alpha0 + n_tr / 2,
+    b0 + t(ytr) %*% ytr / 2 +
+      t(xi) %*% Omega_inv %*% xi / 2 -
+      t(l_beta) %*% Q_beta_inv %*% l_beta / 2
+  )
+  
+  beta_draws <- matrix(NA, nrow = samples, ncol = p_tr)
+  beta_mean_post <- as.vector(Q_beta_inv %*% l_beta)
+  
+  for (s in 1:samples) {
+    beta_draws[s, ] <- mvrnorm(
+      1, mu = beta_mean_post,
+      Sigma = sigma2_draws[s] * Q_beta_inv
+    )
+  }
+  
+  beta_post_mean <- colMeans(beta_draws)
+  
+  # posterior mean predictions on test
+  yhat_test <- as.vector(Xte_sc %*% beta_post_mean)
+  
+  # Test MSE
+  mse <- mean((yte - yhat_test)^2)
+  
+  # test R^2
+  sse <- sum((yte - yhat_test)^2)
+  sst <- sum((yte - mean(yte))^2)
+  r2  <- 1 - sse / sst
+  
+  list(r2 = r2, mse = mse, beta_post_mean = beta_post_mean)
+}
+
+# m1
+m1 <- fit_conjugate_blr(X_train_scaled, y_train,
+                        X_test_scaled,  y_test)
+
+# m2
+set.seed(123)
+bl_fit_tr <- blasso(
+  X = X_train_scaled,
+  y = y_train,
+  T = 10000,
+  thin = 5,
+  verb = 0
+)
+
+beta_ci_tr <- t(apply(bl_fit_tr$beta, 2, quantile, probs = c(0.025, 0.975)))
+colnames(beta_ci_tr) <- c("low", "high")  
+
+selected_lasso_ci_tr <- rownames(beta_ci_tr)[
+  beta_ci_tr[, "low"] > 0 | beta_ci_tr[, "high"] < 0
+]
+
+idx_sel_tr <- as.integer(sub("b\\.", "", selected_lasso_ci_tr))
+selected_nutrients_tr <- colnames(X_train_scaled)[idx_sel_tr]
+
+# subset train/test using the SAME columns
+Xtr_BL_F <- X_train_scaled[, selected_nutrients_tr, drop = FALSE]
+Xte_BL_F <- X_test_scaled[,  selected_nutrients_tr, drop = FALSE]
+
+m2 <- fit_conjugate_blr(Xtr_BL_F, y_train,
+                        Xte_BL_F, y_test)
+
+# m3
+X_train_wofat <- X_train %>% dplyr::select(-Fat)
+X_test_wofat  <- X_test  %>% dplyr::select(-Fat)
+
+mu_wofat <- apply(X_train_wofat, 2, mean)
+sd_wofat <- apply(X_train_wofat, 2, sd)
+
+Xtr_wofat_sc <- scale_with_train(X_train_wofat, mu_wofat, sd_wofat)
+Xte_wofat_sc <- scale_with_train(X_test_wofat,  mu_wofat, sd_wofat)
+
+set.seed(123)
+bl_fit_wofat_tr <- blasso(
+  X = Xtr_wofat_sc,
+  y = y_train,
+  T = 10000,
+  thin = 5,
+  verb = 0
+)
+
+beta_ci_wofat_tr <- t(apply(bl_fit_wofat_tr$beta, 2, quantile, probs = c(0.025, 0.975)))
+colnames(beta_ci_wofat_tr) <- c("low", "high")
+
+selected_lasso_ci_wofat_tr <- rownames(beta_ci_wofat_tr)[
+  beta_ci_wofat_tr[, "low"] > 0 | beta_ci_wofat_tr[, "high"] < 0
+]
+
+idx_sel_wofat_tr <- as.integer(sub("b\\.", "", selected_lasso_ci_wofat_tr))
+selected_nutrients_wofat_tr <- colnames(Xtr_wofat_sc)[idx_sel_wofat_tr]
+
+Xtr_BL <- Xtr_wofat_sc[, selected_nutrients_wofat_tr, drop = FALSE]
+Xte_BL <- Xte_wofat_sc[, selected_nutrients_wofat_tr, drop = FALSE]
+
+m3 <- fit_conjugate_blr(Xtr_BL, y_train,
+                        Xte_BL, y_test)
+
+# m4
+X_train_wofat_types <- X_train %>% dplyr::select(
+  -c(Saturated_Fats, Monounsaturated_Fats, Polyunsaturated_Fats)
+)
+X_test_wofat_types <- X_test %>% dplyr::select(
+  -c(Saturated_Fats, Monounsaturated_Fats, Polyunsaturated_Fats)
+)
+
+# Compute train mean/sd for correct scaling
+mu_wofat_types <- apply(X_train_wofat_types, 2, mean)
+sd_wofat_types <- apply(X_train_wofat_types, 2, sd)
+
+# Apply scaling using training statistics
+Xtr_wofat_types_sc <- scale_with_train(X_train_wofat_types, mu_wofat_types, sd_wofat_types)
+Xte_wofat_types_sc <- scale_with_train(X_test_wofat_types,  mu_wofat_types, sd_wofat_types)
+
+# Bayesian Lasso selection on TRAIN
+set.seed(123)
+bl_fit_wofat_types_tr <- blasso(
+  X = Xtr_wofat_types_sc,
+  y = y_train,
+  T = 10000,
+  thin = 5,
+  verb = 0
+)
+
+# 95% CI for coefficients
+beta_ci_wofat_types_tr <- t(apply(
+  bl_fit_wofat_types_tr$beta,
+  2,
+  quantile,
+  probs = c(0.025, 0.975)
+))
+colnames(beta_ci_wofat_types_tr) <- c("low", "high")
+
+# Select coefficients whose 95% CI excludes zero
+selected_lasso_ci_wofat_types_tr <- rownames(beta_ci_wofat_types_tr)[
+  beta_ci_wofat_types_tr[, "low"] > 0 |
+    beta_ci_wofat_types_tr[, "high"] < 0
+]
+
+# Map b.## to column names
+idx_sel_wofat_types_tr <- as.integer(
+  sub("b\\.", "", selected_lasso_ci_wofat_types_tr)
+)
+selected_nutrients_wofat_types_tr <- colnames(Xtr_wofat_types_sc)[idx_sel_wofat_types_tr]
+
+# Final predictor matrices
+Xtr_BL_nofat_types <- Xtr_wofat_types_sc[, selected_nutrients_wofat_types_tr, drop = FALSE]
+Xte_BL_nofat_types <- Xte_wofat_types_sc[, selected_nutrients_wofat_types_tr, drop = FALSE]
+
+# Fit conjugate BLR
+m4 <- fit_conjugate_blr(Xtr_BL_nofat_types, y_train,
+                        Xte_BL_nofat_types, y_test)
+
+# m5
+set.seed(123)
+df_model_tr <- data.frame(
+  y = as.numeric(y_train),
+  as.data.frame(X_train_scaled)
+)
+
+ss_fit_tr <- lm.spike(
+  y ~ .,
+  data  = df_model_tr,
+  niter = 6000,
+  expected.model.size = 10
+)
+
+burn_in <- 1000
+ss_sum_tr <- summary(ss_fit_tr, burn = burn_in)
+coef_table_tr <- ss_sum_tr$coefficients
+
+inc_prob_tr <- coef_table_tr[, 5]
+inc_prob_tr <- inc_prob_tr[names(inc_prob_tr) != "(Intercept)"]
+
+selected_vars_tr <- names(inc_prob_tr)[inc_prob_tr > 0.5]
+
+if (length(selected_vars_tr) == 0) {
+  stop("Spike&Slab selected no variables on TRAIN (inc_prob > 0.5). Lower threshold.")
+}
+
+Xtr_SS <- X_train_scaled[, selected_vars_tr, drop = FALSE]
+Xte_SS <- X_test_scaled[,  selected_vars_tr, drop = FALSE]
+
+m5 <- fit_conjugate_blr(Xtr_SS, y_train,
+                        Xte_SS, y_test)
+
+# m6
+X_train_wofat <- X_train %>% dplyr::select(-Fat)
+X_test_wofat  <- X_test  %>% dplyr::select(-Fat)
+
+mu_wofat <- apply(X_train_wofat, 2, mean)
+sd_wofat <- apply(X_train_wofat, 2, sd)
+
+Xtr_wofat_sc <- scale_with_train(X_train_wofat, mu_wofat, sd_wofat)
+Xte_wofat_sc <- scale_with_train(X_test_wofat,  mu_wofat, sd_wofat)
+
+set.seed(123)
+df_model_tr_nofat <- data.frame(
+  y = as.numeric(y_train),
+  as.data.frame(Xtr_wofat_sc)
+)
+
+ss_fit_tr_nofat <- lm.spike(
+  y ~ .,
+  data  = df_model_tr_nofat,
+  niter = 6000,
+  expected.model.size = 10
+)
+
+burn_in <- 1000
+ss_sum_tr_nofat <- summary(ss_fit_tr_nofat, burn = burn_in)
+coef_table_tr_nofat <- ss_sum_tr_nofat$coefficients
+
+inc_prob_tr_nofat <- coef_table_tr_nofat[, 5]
+inc_prob_tr_nofat <- inc_prob_tr_nofat[names(inc_prob_tr_nofat) != "(Intercept)"]
+
+selected_vars_tr_nofat <- names(inc_prob_tr_nofat)[inc_prob_tr_nofat > 0.5]
+
+if (length(selected_vars_tr_nofat) == 0) {
+  stop("Spike&Slab (No Fat) selected no variables on TRAIN (inc_prob > 0.5). Lower threshold.")
+}
+
+Xtr_SS_nofat <- Xtr_wofat_sc[, selected_vars_tr_nofat, drop = FALSE]
+Xte_SS_nofat <- Xte_wofat_sc[,  selected_vars_tr_nofat, drop = FALSE]
+
+m6 <- fit_conjugate_blr(Xtr_SS_nofat, y_train,
+                        Xte_SS_nofat, y_test)
+
+# m7
+X_train_wofat_types <- X_train %>% dplyr::select(
+  -c(Saturated_Fats, Monounsaturated_Fats, Polyunsaturated_Fats)
+)
+X_test_wofat_types <- X_test %>% dplyr::select(
+  -c(Saturated_Fats, Monounsaturated_Fats, Polyunsaturated_Fats)
+)
+
+# Compute train mean/sd for correct scaling
+mu_wofat_types <- apply(X_train_wofat_types, 2, mean)
+sd_wofat_types <- apply(X_train_wofat_types, 2, sd)
+
+# Apply scaling using training statistics
+Xtr_wofat_types_sc <- scale_with_train(X_train_wofat_types, mu_wofat_types, sd_wofat_types)
+Xte_wofat_types_sc <- scale_with_train(X_test_wofat_types,  mu_wofat_types, sd_wofat_types)
+
+set.seed(123)
+df_model_tr_nofat_types <- data.frame(
+  y = as.numeric(y_train),
+  as.data.frame(Xtr_wofat_types_sc)
+)
+
+ss_fit_tr_nofat_types <- lm.spike(
+  y ~ .,
+  data  = df_model_tr_nofat_types,
+  niter = 6000,
+  expected.model.size = 10
+)
+
+burn_in <- 1000
+ss_sum_tr_nofat_types <- summary(ss_fit_tr_nofat_types, burn = burn_in)
+coef_table_tr_nofat_types <- ss_sum_tr_nofat_types$coefficients
+
+inc_prob_tr_nofat_types <- coef_table_tr_nofat_types[, 5]
+inc_prob_tr_nofat_types <- inc_prob_tr_nofat_types[names(inc_prob_tr_nofat_types) != "(Intercept)"]
+
+selected_vars_tr_nofat_types <- names(inc_prob_tr_nofat_types)[inc_prob_tr_nofat_types > 0.5]
+
+if (length(selected_vars_tr_nofat_types) == 0) {
+  stop("Spike&Slab (No Fat Types) selected no variables on TRAIN (inc_prob > 0.5). Lower threshold.")
+}
+
+Xtr_SS_nofat_types <- Xtr_wofat_types_sc[, selected_vars_tr_nofat_types, drop = FALSE]
+Xte_SS_nofat_types <- Xte_wofat_types_sc[,  selected_vars_tr_nofat_types, drop = FALSE]
+
+m7 <- fit_conjugate_blr(Xtr_SS_nofat_types, y_train,
+                        Xte_SS_nofat_types, y_test)
+
+# m8
+vars_m8 <- c("Fat", "Carbohydrates", "Protein")
+
+# make sure they exist
+stopifnot(all(vars_m8 %in% colnames(X_train)))
+
+# subset original (unscaled) train/test
+X_train_m8 <- X_train[, vars_m8, drop = FALSE]
+X_test_m8  <- X_test[,  vars_m8, drop = FALSE]
+
+# scale using TRAIN stats of these 3 variables
+mu_m8 <- apply(X_train_m8, 2, mean)
+sd_m8 <- apply(X_train_m8, 2, sd)
+
+Xtr_m8_sc <- scale_with_train(X_train_m8, mu_m8, sd_m8)
+Xte_m8_sc <- scale_with_train(X_test_m8,  mu_m8, sd_m8)
+
+m8 <- fit_conjugate_blr(Xtr_m8_sc, y_train,
+                        Xte_m8_sc, y_test)
+
+@
+
+\noindent
+Based on our prior knowledge and the predictors often chosen by the different forms of variable selection we did, we also choose to look at a model based on only fat, proten, and carbohydrates. Now, we will directly compare all our models by $R^2$ and MSE.
+
+<<model_summary, echo=FALSE, results="asis">>=
+r2_table <- tibble(
+  Model = c(
+    "Model 1: Full",
+    "Model 2: BLasso",
+    "Model 3: BLasso (no Fat)",
+    "Model 4: BLasso (no Fat Types)",
+    "Model 5: Spike&Slab",
+    "Model 6: Spike&Slab (no Fat)",
+    "Model 7: Spike&Slab (no Fat Types)",
+    "Model 8: Fat+Carbs+Protein only"
+  ),
+  Test_R2 = c(m1$r2, m2$r2, m3$r2, m4$r2, m5$r2, m6$r2, m7$r2, m8$r2),
+  Test_MSE = c(m1$mse, m2$mse, m3$mse, m4$mse, m5$mse, m6$mse, m7$mse, m8$mse),
+  Num_Predictors = c(
+    ncol(X_train_scaled),      # Model 1
+    ncol(Xtr_BL_F),            # Model 2
+    ncol(Xtr_BL),              # Model 3
+    ncol(Xtr_BL_nofat_types),  # Model 4
+    ncol(Xtr_SS),              # Model 5
+    ncol(Xtr_SS_nofat),        # Model 6
+    ncol(Xtr_SS_nofat_types),  # Model 7
+    ncol(Xtr_m8_sc)            # Model 8
+  )
+)
+knitr::kable(r2_table %>%
+               mutate(Test_R2 = round(Test_R2, 5),
+                      Test_MSE = round(Test_MSE, 0)),
+             col.names = c("Model", "R2", "MSE", "N Regressors"),
+             caption = "Model Comparison: R2 and MSE",
+             longtable = T)
+@
+
+\newpage
+\noindent
+The models are similar to each other in terms of $R^2$ and MSE. However, the best model with the smallest $R^2$ and MSE is the model with fat, protein, and carbohydrates based on general information of food nutrients. It also has the least regressors which makes it better for interpretability.
 
 \section{Summary and Discussion}
+In general, it seems like the model with fats, proteins, and carbohydrates is the best model we made for prediciting caloric value. Multicollinearity may have been the reason for the other models underperforming. However, those models are useful to look at because it can be indicate other interesting relationships between the predictors themselves. We can infer why exactly some predictors were included even though they don't add a lot to caloric value such as the vitamins. Vitamin A, in particular, may have been included even though it is not likely to lead to caloric value because it is associated with fats as it makes it easier to process Vitamin A. So, overall, this project revealed some insight into what nutrients may be associated with caloric value and each other.
 
 \section{Appendix}
 
