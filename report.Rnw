@@ -10,6 +10,8 @@
 \usepackage{subcaption}
 \usepackage[margin=1in]{geometry}
 \usepackage{longtable}
+\usepackage[backend=bibtex, style=numeric, sorting=none]{biblatex}
+\addbibresource{references.bib}
 
 
 
@@ -17,7 +19,7 @@
 
 \begin{document}
 
-\title{My Sweave Report}
+\title{Why our Food so Caloric: Bayesian Analysis of Food Nutrition}
 \author{Thy Luong, Evgeniia Selezneva, Jasmine Wang}
 \date{\today}
 \maketitle
@@ -71,7 +73,7 @@ Everybody needs to eat food, but it is often complicated to understand what exac
 Our plan was to analyze the relationship between different types of nutrition and caloric value using data from a food nutrition dataset. We wanted to use Bayesian linear regression for Normal-Inverse-Gamma conjugate prior-posterior to see if any of the nutrition types are useful for predicting caloric value. Using Bayesian variable selection methods such as Bayesian lasso and spike-and-slab regression, we came up with several models to analyze the relationship between nutrition types and calories. We then compared how well these models predicted our test data.
 
 \section{Data Collection}
-We used food nutrition data from Kaggle compiled from scrapping the internet. It contains nutritional data for a total of 2,395 various rows (food) and 35 columns (food, 32 different nutrients, caloric value, and nutrition density) meaning we worked with up to 32 predictors for caloric value. During exploratory data analysis, we decided to investigate nutrients that we believed were more relevant to caloric value based on prior common knowledge we had. These nutrients were fat (all types), carbohydrates, and protein. We also looked at caloric value itself and in relation to these nutrients.
+We used food nutrition data \cite{data} from Kaggle compiled from scrapping the internet. It contains nutritional data for a total of 2,395 various rows (food) and 35 columns (food, 32 different nutrients, caloric value, and nutrition density) meaning we worked with up to 32 predictors for caloric value. During exploratory data analysis, we decided to investigate nutrients that we believed were more relevant to caloric value based on prior common knowledge we had. These nutrients were fat (all types), carbohydrates, and protein. We also looked at caloric value itself and in relation to these nutrients.
 
 % include eda plots
 
@@ -210,7 +212,7 @@ Not all the predictors we have in our dataset are necessarily useful for predict
 
 \noindent
 The classical frequentist Lasso is a regularization method used in regression to decrease variance at the cost of increasing bias. Instead of using an estimation of ordinary least squares, it uses $L_1$-constrained least squares by adding an $L_1$ penalty. As opposed to some other regularization methods, Bayesian lasso can reduce irrelevant coefficients to zero by penalty.
-$$\min_{\beta} \Big( \dfrac{1}{n} || Y - X \beta ||^2_2 + \lambda ||\beta||_1\Big)$$
+$$\min_{\beta} \Big( \dfrac{1}{n} || Y - X \beta ||^2_2 + \lambda ||\beta||_1\Big)$$ \cite{blr}
 
 \noindent
 The Bayesian Lasso reinterprets this as a regression model where there is a prior Laplace mixture which is made up of a Normal and Exponential distribution.
@@ -221,7 +223,7 @@ $$
 $$
 
 \noindent
-From here, we sample from the distributions to do MCMC which gives us $\beta$ samples Then, similar to Bayesian linear regression, we use a 95\% credible interval to determine $\beta$ with a nonzero credible interval which we select as our predictors to use.
+From here, we sample from the distributions to do MCMC which gives us $\beta$ samples Then, similar to Bayesian linear regression, we use a 95\% credible interval to determine $\beta$ with a nonzero credible interval which we select as our predictors to use. \cite{blasso}
 
 \noindent
 Spike-and-slab regression uses a mixture prior that sorts coefficients into a "spike" distribution (mass around zero), or a wide, diffused "slab" distribution. This prior is conditional on $\gamma_j \sim Bernoulli(\pi)$, an inclusion indicator which represents whether $\beta_j$ is included in the model.
@@ -1301,34 +1303,13 @@ knitr::kable(r2_table %>%
 The models are similar to each other in terms of $R^2$ and MSE. However, the best model with the smallest $R^2$ and MSE is the model with fat, protein, and carbohydrates based on general information of food nutrients. It also has the least regressors which makes it better for interpretability.
 
 \section{Summary and Discussion}
-In general, it seems like the model with fats, proteins, and carbohydrates is the best model we made for prediciting caloric value. Multicollinearity may have been the reason for the other models underperforming. However, those models are useful to look at because it can be indicate other interesting relationships between the predictors themselves. We can infer why exactly some predictors were included even though they don't add a lot to caloric value such as the vitamins. Vitamin A, in particular, may have been included even though it is not likely to lead to caloric value because it is associated with fats as it makes it easier to process Vitamin A. So, overall, this project revealed some insight into what nutrients may be associated with caloric value and each other.
+In general, it seems like the model with fats, proteins, and carbohydrates is the best model we made for prediciting caloric value. Multicollinearity may have been the reason for the other models underperforming as they often included various combinations of fat types and fat instead of only fat itself. However, those models are useful to look at because it can be indicate other interesting relationships between the predictors themselves. We can infer why exactly some predictors were included even though they don't add a lot to caloric value such as the vitamins. Vitamin A and E, in particular, show up a lot. They may have been included even though vitamins, in general, should not likely to lead to caloric value because these are fat soluble vitamins which may be associated with fats as it makes it easier to process these vitamins. So, overall, this project revealed some insight into what nutrients may be associated with caloric value, but also each other.
 
-\section{Appendix}
-
-\section{References}
-% dataset
-% @misc{utsav_dey_2024,
-% 	title={Food Nutrition Dataset},
-% 	url={https://www.kaggle.com/dsv/8820139},
-% 	DOI={10.34740/KAGGLE/DSV/8820139},
-% 	publisher={Kaggle},
-% 	author={Utsav Dey},
-% 	year={2024}
-% }
+\printbibliography
 % ai
-% papers
-% how do bibs work in r sweave (probably the same?)
-% how should we reference class material ? waiting for email from dr. li
-
-\section{Self-Reflection (Individual)}
 
 
-
-
-
-<<chunk_name, echo=FALSE, warning=FALSE, message=FALSE, result = "hide">>=
-# code chunk
-@
-
+\section*{Appendix}
+% code
 
 \end{document}
