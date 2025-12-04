@@ -12,6 +12,7 @@
 \usepackage{longtable}
 \usepackage[backend=bibtex, style=numeric, sorting=none]{biblatex}
 \addbibresource{references.bib}
+\usepackage[utf8]{inputenc}
 
 
 
@@ -1307,7 +1308,37 @@ The models are similar to each other in terms of $R^2$ and MSE. However, the bes
 In general, it seems like the model with fats, proteins, and carbohydrates is the best model we made for prediciting caloric value. Multicollinearity may have been the reason for the other models underperforming as they often included various combinations of fat types and fat instead of only fat itself. However, those models are useful to look at because it can be indicate other interesting relationships between the predictors themselves. We can infer why exactly some predictors were included even though they don't add a lot to caloric value such as the vitamins. Vitamin A and E, in particular, show up a lot. They may have been included even though vitamins, in general, should not likely to lead to caloric value because these are fat soluble vitamins which may be associated with fats as it makes it easier to process these vitamins. So, overall, this project revealed some insight into what nutrients may be associated with caloric value, but also each other.
 
 \printbibliography
-% ai
+
+\noindent
+List of AI Prompts: \\
+1. bayesian linear regression variable selection \\
+2. explain spike-and-slab prior more \\
+3. normal inverse gamma conjugate prior posterior \\
+4. shouldn't it be s2(n-1) \\
+5. normal gamma vs normal inverse gamma prior which one is associated with sigma and which is associated with tau \\
+6. non informative hyper parameters for nig \\
+7. bayesian linear regression \\
+8. show an example\\
+9. example code\\
+10. in R\\
+11. r sweave outline\\
+12. idea behind spike and slab\\
+13. explain spike and slab regression\\
+14. how does mcmc play into this\\
+15. r swerve load data chunk\\
+16. how to have plots one after another without text in between\\
+17. sweave to knitr\\
+18. library not loading in later chunks\\
+19. I want figure 1 and figure 2 to be next to each other however the text I have after figure 2 keeps getting in between the figures\\
+20. How to get individual captions for the figures\\
+21. get vertical stack\\
+22. r sweave margins\\
+23. for whole document\\
+24. r sweave show table\\
+25. use math in Kable names\\
+26. add caption to table\\
+27. r2 string formatting in r sweave\\
+
 
 
 \section*{Appendix}
