@@ -207,14 +207,14 @@ $$\sigma^2 | Y, X \sim \text{Inverse-Gamma}(a + \frac{n}{2}, b + \frac{1}{2}(Y -
 where $\Omega = \sigma^2V$. \\
 
 \noindent
-Then, we sample from these posterior distributions to get samples of $\beta$ and $\sigma^2$. Based on these samples, we can create a 95\% credible interval of which we choose $\beta$ to be in the model if its credible interval does not contain zero.
+Then, we sample from these posterior distributions to get samples of $\beta$ and $\sigma^2$. Based on these samples, we can create a 95\% credible interval of which we choose $\beta$ to be in the model if its credible interval does not contain zero \cite{blr}.
 
 \subsection{Bayesian Variable Selection}
 Not all the predictors we have in our dataset are necessarily useful for predicting our response variable, caloric value. There are various Bayesian variable selection methods to help with this issue. For this analysis, we chose to use Bayesian lasso and spike-and-slab. \\
 
 \noindent
 The classical frequentist Lasso is a regularization method used in regression to decrease variance at the cost of increasing bias. Instead of using an estimation of ordinary least squares, it uses $L_1$-constrained least squares by adding an $L_1$ penalty. As opposed to some other regularization methods, Bayesian lasso can reduce irrelevant coefficients to zero by penalty.
-$$\min_{\beta} \Big( \dfrac{1}{n} || Y - X \beta ||^2_2 + \lambda ||\beta||_1\Big)$$ \cite{blr}
+$$\min_{\beta} \Big( \dfrac{1}{n} || Y - X \beta ||^2_2 + \lambda ||\beta||_1\Big)$$
 
 \noindent
 The Bayesian Lasso reinterprets this as a regression model where there is a prior Laplace mixture which is made up of a Normal and Exponential distribution.
@@ -1307,8 +1307,6 @@ The models are similar to each other in terms of $R^2$ and MSE. However, the bes
 \section{Summary and Discussion}
 In general, it seems like the model with fats, proteins, and carbohydrates is the best model we made for prediciting caloric value. Multicollinearity may have been the reason for the other models underperforming as they often included various combinations of fat types and fat instead of only fat itself. However, those models are useful to look at because it can be indicate other interesting relationships between the predictors themselves. We can infer why exactly some predictors were included even though they don't add a lot to caloric value such as the vitamins. Vitamin A and E, in particular, show up a lot. They may have been included even though vitamins, in general, should not likely to lead to caloric value because these are fat soluble vitamins which may be associated with fats as it makes it easier to process these vitamins. So, overall, this project revealed some insight into what nutrients may be associated with caloric value, but also each other.
 
-\printbibliography
-
 \noindent
 List of AI Prompts: \\
 1. bayesian linear regression variable selection \\
@@ -1338,8 +1336,18 @@ List of AI Prompts: \\
 25. use math in Kable names\\
 26. add caption to table\\
 27. r2 string formatting in r sweave\\
+28. I am doing a research project on the Food Dataset. (dataset pasted here). This is our proposal: (proposal pasted here). I need advice on how to start do Bayesian Variables Selection (we are thinking try both spike and slab priors and Bayesian Lasso). Give some R code with explanation.\\
+29. Error in blasso, could not find function "blasso" \\
+30. how to map back these selected lasso ci to variables \\
+31. how to do spike and slab prior for variable selection for this code: (existed code pasted here) \\
+32. complete model 3 similar to model 2 \\
+33. finish code for model 4 (existed code pasted here) \\
+34. modify my four model, use same train split set to run on them, and get R squared \\
+35. give me model 5 Can we also run a model with only fat, carbohydrates and proteins? I am curious if we actually need all the other stuff \\
+36. is any mistake or mismatch in my code \\
+37. everything good now?
 
-
+\printbibliography
 
 \section*{Appendix}
 % code
